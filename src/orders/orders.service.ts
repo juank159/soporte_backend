@@ -11,6 +11,7 @@ import {
   UpdateOrderStatusDto,
   AddDiagnosisDto,
 } from './dto/create-order.dto';
+import { CloudinaryService } from '../storage/cloudinary.service';
 
 @Injectable()
 export class OrdersService {
@@ -23,6 +24,7 @@ export class OrdersService {
     private photosRepository: Repository<OrderPhoto>,
     @InjectRepository(OrderHistory)
     private historyRepository: Repository<OrderHistory>,
+    private cloudinaryService: CloudinaryService,
     @InjectRepository(Device)
     private devicesRepository: Repository<Device>,
   ) {}
@@ -243,9 +245,19 @@ export class OrdersService {
 
   async addPhoto(tenantId: string, orderId: string, photoUrl: string, description?: string, stage?: string) {
     await this.findOne(tenantId, orderId);
+
+    // Upload to Cloudinary if it's base64
+    let finalUrl = photoUrl;
+    if (photoUrl.startsWith('data:') || photoUrl.length > 500) {
+      finalUrl = await this.cloudinaryService.uploadBase64(
+        photoUrl,
+        `soporte/${tenantId}/orders/${orderId}`,
+      );
+    }
+
     const photo = this.photosRepository.create({
       orderId,
-      photoUrl,
+      photoUrl: finalUrl,
       description,
       takenAtStage: stage || 'reception',
     });

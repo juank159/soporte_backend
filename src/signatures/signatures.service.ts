@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Signature } from './entities/signature.entity';
 import { ServiceOrder } from '../orders/entities/service-order.entity';
 import { CreateSignatureDto } from './dto/create-signature.dto';
+import { CloudinaryService } from '../storage/cloudinary.service';
 
 @Injectable()
 export class SignaturesService {
@@ -12,6 +13,7 @@ export class SignaturesService {
     private signaturesRepository: Repository<Signature>,
     @InjectRepository(ServiceOrder)
     private ordersRepository: Repository<ServiceOrder>,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async create(
@@ -25,12 +27,22 @@ export class SignaturesService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    // Upload signature to Cloudinary
+    let pngUrl = dto.pngData;
+    if (pngUrl && (pngUrl.startsWith('data:') || pngUrl.length > 500)) {
+      pngUrl = await this.cloudinaryService.uploadSignature(
+        pngUrl,
+        `soporte/${tenantId}/signatures`,
+        `${orderId}_${dto.signerType}`,
+      );
+    }
+
     const signature = this.signaturesRepository.create({
       orderId,
       signerType: dto.signerType,
       signerName: dto.signerName,
       svgPath: dto.svgPath,
-      pngUrl: dto.pngData, // In production, upload to S3 and store URL
+      pngUrl,
       deviceInfo: dto.deviceInfo,
       ipAddress,
     });

@@ -15,6 +15,7 @@ import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DeviceCatalogModule } from './device-catalog/device-catalog.module';
 import { PublicModule } from './public/public.module';
+import { StorageModule } from './storage/storage.module';
 import { DeviceType } from './device-catalog/entities/device-type.entity';
 import { DeviceBrand } from './device-catalog/entities/device-brand.entity';
 
@@ -86,6 +87,7 @@ import { OrderHistory } from './orders/entities/order-history.entity';
     ReportsModule,
     NotificationsModule,
     DeviceCatalogModule,
+    StorageModule,
     PublicModule,
   ],
 })
