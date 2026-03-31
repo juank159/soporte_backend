@@ -132,6 +132,30 @@ export class PublicController {
     }));
   }
 
+  private formatDate(date: Date | string, timezone: string, includeTime = true): string {
+    const tz = timezone || 'America/Bogota';
+    const opts: Intl.DateTimeFormatOptions = includeTime
+      ? { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz }
+      : { year: 'numeric', month: 'long', day: 'numeric', timeZone: tz };
+    try {
+      return new Date(date).toLocaleDateString('es-CO', opts);
+    } catch {
+      return new Date(date).toLocaleDateString('es-CO');
+    }
+  }
+
+  private formatDateShort(date: Date | string, timezone: string): string {
+    const tz = timezone || 'America/Bogota';
+    try {
+      return new Date(date).toLocaleDateString('es-CO', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz,
+      });
+    } catch {
+      return new Date(date).toLocaleDateString('es-CO');
+    }
+  }
+
   private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>): string {
     const statusLabel = this.getStatusLabel(order.status);
     const timeline = this.getTimeline(order);
@@ -139,9 +163,8 @@ export class PublicController {
     const tenantName = tenant?.name || 'Servicio Tecnico';
     const tenantPhone = tenant?.phone || '';
     const tenantAddress = tenant?.address || '';
-    const createdDate = new Date(order.createdAt).toLocaleDateString('es-CO', {
-      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    const tz = tenant?.timezone || 'America/Bogota';
+    const createdDate = this.formatDate(order.createdAt, tz);
 
     const timelineHtml = timeline
       .map(
@@ -313,7 +336,7 @@ export class PublicController {
     <div class="card">
       <div class="section-title">Informacion</div>
       <div class="info-row"><span class="label">Recibido</span><span class="value">${createdDate}</span></div>
-      ${order.deliveredAt ? `<div class="info-row"><span class="label">Entregado</span><span class="value">${new Date(order.deliveredAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>` : ''}
+      ${order.deliveredAt ? `<div class="info-row"><span class="label">Entregado</span><span class="value">${this.formatDate(order.deliveredAt, tz, false)}</span></div>` : ''}
       ${tenantPhone ? `<div class="info-row"><span class="label">Contacto</span><span class="value">${tenantPhone}</span></div>` : ''}
       ${tenantAddress ? `<div class="info-row"><span class="label">Direccion</span><span class="value">${tenantAddress}</span></div>` : ''}
     </div>
@@ -327,7 +350,7 @@ export class PublicController {
           <div>
             <div style="font-size:13px;font-weight:600;">${h.status}</div>
             ${h.notes ? `<div style="font-size:11px;color:#94A3B8;font-style:italic;margin-top:2px;">${h.notes}</div>` : ''}
-            <div style="font-size:10px;color:#64748B;margin-top:1px;">${new Date(h.date).toLocaleDateString('es-CO', { year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit' })}</div>
+            <div style="font-size:10px;color:#64748B;margin-top:1px;">${this.formatDateShort(h.date, tz)}</div>
           </div>
         </div>
       `).join('')}
