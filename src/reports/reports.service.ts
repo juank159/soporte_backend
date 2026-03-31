@@ -177,4 +177,54 @@ export class ReportsService {
       count: times.length,
     };
   }
+
+  async getStaleOrders(tenantId: string) {
+    // Orders that have been in the system without being delivered
+    const activeStatuses = [
+      OrderStatus.RECEIVED,
+      OrderStatus.DIAGNOSING,
+      OrderStatus.REPAIRING,
+      OrderStatus.QUALITY_CHECK,
+      OrderStatus.READY,
+    ];
+
+    const orders = await this.ordersRepository.find({
+      where: activeStatuses.map((status) => ({ tenantId, status })),
+      relations: ['customer', 'device'],
+      order: { createdAt: 'ASC' },
+    });
+
+    const now = Date.now();
+    const result = orders.map((o) => {
+      const daysInSystem = Math.floor(
+        (now - new Date(o.createdAt).getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return {
+        id: o.id,
+        orderNumber: o.orderNumber,
+        status: o.status,
+        customerName: o.customer?.fullName,
+        device: o.device
+          ? `${o.device.brand} ${o.device.model}`
+          : null,
+        createdAt: o.createdAt,
+        daysInSystem,
+        priority: daysInSystem >= 30
+          ? 'critical'
+          : daysInSystem >= 15
+            ? 'warning'
+            : 'normal',
+      };
+    });
+
+    // Sort by days in system (oldest first)
+    result.sort((a, b) => b.daysInSystem - a.daysInSystem);
+
+    return {
+      total: result.length,
+      critical: result.filter((o) => o.priority === 'critical').length,
+      warning: result.filter((o) => o.priority === 'warning').length,
+      orders: result,
+    };
+  }
 }

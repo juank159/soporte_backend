@@ -7,10 +7,12 @@ import { OrderItem } from './entities/order-item.entity';
 import { OrderPhoto } from './entities/order-photo.entity';
 import { OrderHistory } from './entities/order-history.entity';
 import { Device } from '../devices/entities/device.entity';
+import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ServiceOrder, OrderItem, OrderPhoto, OrderHistory, Device]),
+    TenantsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

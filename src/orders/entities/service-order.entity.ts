@@ -84,7 +84,7 @@ export class ServiceOrder {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   total: number;
 
-  @Column({ name: 'warranty_days', default: 30 })
+  @Column({ name: 'warranty_days', default: 0 })
   warrantyDays: number;
 
   @Column({ name: 'pdf_url', nullable: true })

@@ -48,4 +48,10 @@ export class ReportsController {
   getRepairTime(@CurrentTenant() tenantId: string) {
     return this.reportsService.getRepairTimeReport(tenantId);
   }
+
+  @Get('stale-orders')
+  @ApiOperation({ summary: 'Orders pending for too long (15+ days)' })
+  getStaleOrders(@CurrentTenant() tenantId: string) {
+    return this.reportsService.getStaleOrders(tenantId);
+  }
 }

@@ -19,6 +19,8 @@ import { DeviceType } from './device-catalog/entities/device-type.entity';
 import { DeviceBrand } from './device-catalog/entities/device-brand.entity';
 
 import { Tenant } from './tenants/entities/tenant.entity';
+import { Subscription } from './tenants/entities/subscription.entity';
+import { DeviceSession } from './tenants/entities/device-session.entity';
 import { User } from './users/entities/user.entity';
 import { Customer } from './customers/entities/customer.entity';
 import { Device } from './devices/entities/device.entity';
@@ -58,6 +60,8 @@ import { OrderHistory } from './orders/entities/order-history.entity';
           OrderHistory,
           DeviceType,
           DeviceBrand,
+          Subscription,
+          DeviceSession,
         ],
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',

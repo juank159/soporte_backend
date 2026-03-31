@@ -27,20 +27,26 @@ import { RolesGuard, Roles } from '../common/guards/roles.guard';
 import { CurrentTenant, CurrentUser } from '../common/decorators/tenant.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { OrderStatus } from './entities/service-order.entity';
+import { SubscriptionService } from '../tenants/subscription.service';
 
 @ApiTags('Orders')
 @Controller('orders')
 @UseGuards(AuthGuard('jwt'), TenantGuard)
 @ApiBearerAuth()
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly subscriptionService: SubscriptionService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new service order' })
-  create(
+  async create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateOrderDto,
   ) {
+    // Validate subscription is active
+    await this.subscriptionService.validateCanCreateOrder(tenantId);
     return this.ordersService.create(tenantId, dto);
   }
 

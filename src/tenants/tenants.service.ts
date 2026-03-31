@@ -8,8 +8,10 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Tenant } from './entities/tenant.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { Customer } from '../customers/entities/customer.entity';
 import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
 import { DeviceCatalogService } from '../device-catalog/device-catalog.service';
+import { SubscriptionService } from './subscription.service';
 
 @Injectable()
 export class TenantsService {
@@ -18,7 +20,10 @@ export class TenantsService {
     private tenantsRepository: Repository<Tenant>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Customer)
+    private customersRepository: Repository<Customer>,
     private deviceCatalogService: DeviceCatalogService,
+    private subscriptionService: SubscriptionService,
   ) {}
 
   async create(createTenantDto: CreateTenantDto) {
@@ -54,8 +59,19 @@ export class TenantsService {
 
     await this.usersRepository.save(adminUser);
 
-    // Seed default device types and brands
+    // Seed defaults
     await this.deviceCatalogService.seedDefaults(savedTenant.id);
+    await this.subscriptionService.createDefault(savedTenant.id);
+
+    // Create Express customer
+    await this.customersRepository.save(
+      this.customersRepository.create({
+        tenantId: savedTenant.id,
+        fullName: 'Cliente Express',
+        idNumber: 'EXPRESS',
+        phone: '0000000000',
+      }),
+    );
 
     return {
       tenant: savedTenant,
