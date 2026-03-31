@@ -51,14 +51,28 @@ export class ReportsService {
     startDate: Date,
     endDate: Date,
   ) {
-    const orders = await this.ordersRepository.find({
-      where: [
-        { tenantId, status: OrderStatus.DELIVERED, deliveredAt: Between(startDate, endDate) },
-        { tenantId, status: OrderStatus.CLOSED, deliveredAt: Between(startDate, endDate) },
-      ],
-      relations: ['customer', 'items'],
-      order: { deliveredAt: 'DESC' },
-    });
+    // Ensure endDate includes the full day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Use query builder for more flexible date filtering
+    // Some orders might have deliveredAt null, fallback to createdAt
+    const orders = await this.ordersRepository
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.customer', 'c')
+      .leftJoinAndSelect('o.items', 'i')
+      .where('o.tenantId = :tenantId', { tenantId })
+      .andWhere('o.status IN (:...statuses)', {
+        statuses: [OrderStatus.DELIVERED, OrderStatus.CLOSED],
+      })
+      .andWhere(
+        'COALESCE(o.deliveredAt, o.createdAt) BETWEEN :start AND :end',
+        { start, end },
+      )
+      .orderBy('COALESCE(o.deliveredAt, o.createdAt)', 'DESC')
+      .getMany();
 
     const totalRevenue = orders.reduce(
       (sum, o) => sum + Number(o.total),
