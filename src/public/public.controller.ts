@@ -325,6 +325,7 @@ export class PublicController {
 <body>
   <div class="container">
     <div class="card header">
+      ${tenant?.logoUrl ? `<img src="${tenant.logoUrl}" alt="Logo" style="max-height:60px;margin-bottom:8px;" onerror="this.style.display='none'"/>` : ''}
       <h1>${tenantName}</h1>
       <div class="order-number">${order.orderNumber}</div>
       <div class="status-badge ${order.status === 'ready' || order.status === 'delivered' ? order.status : ''}">${statusLabel}</div>
