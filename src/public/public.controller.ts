@@ -6,6 +6,7 @@ import { Response } from 'express';
 import { ServiceOrder } from '../orders/entities/service-order.entity';
 import { OrderHistory } from '../orders/entities/order-history.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('Public')
 @Controller()
@@ -17,6 +18,8 @@ export class PublicController {
     private historyRepository: Repository<OrderHistory>,
     @InjectRepository(Tenant)
     private tenantsRepository: Repository<Tenant>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   @Get('public/status/:orderId')
@@ -81,9 +84,15 @@ export class PublicController {
         where: { id: order.tenantId },
       });
 
+      let techName = '';
+      if (order.technicianId) {
+        const tech = await this.usersRepository.findOne({ where: { id: order.technicianId } });
+        if (tech) techName = tech.fullName;
+      }
+
       const history = await this.getOrderHistory(order.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(this.renderStatusPage(order, tenant, history));
+      res.send(this.renderStatusPage(order, tenant, history, techName));
     } catch {
       res.status(500).send(this.renderErrorPage('Error del servidor'));
     }
@@ -156,7 +165,7 @@ export class PublicController {
     }
   }
 
-  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>): string {
+  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>, technicianName?: string): string {
     const statusLabel = this.getStatusLabel(order.status);
     const timeline = this.getTimeline(order);
     const device = order.device;
@@ -331,6 +340,9 @@ export class PublicController {
       <div class="info-row"><span class="label">Tipo</span><span class="value">${device.type}</span></div>
       <div class="info-row"><span class="label">Marca</span><span class="value">${device.brand}</span></div>
       <div class="info-row"><span class="label">Modelo</span><span class="value">${device.model}</span></div>
+      ${device.serial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${device.serial}</span></div>` : ''}
+      ${device.accessories && device.accessories.length > 0 ? `<div class="info-row"><span class="label">Accesorios</span><span class="value">${device.accessories.join(', ')}</span></div>` : ''}
+      ${technicianName ? `<div class="info-row"><span class="label">Tecnico</span><span class="value">${technicianName}</span></div>` : ''}
     </div>` : ''}
 
     <div class="card">
