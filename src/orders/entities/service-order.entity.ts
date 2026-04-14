@@ -12,6 +12,7 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import { Customer } from '../../customers/entities/customer.entity';
 import { Device } from '../../devices/entities/device.entity';
 import { OrderItem } from './order-item.entity';
+import { OrderEquipment } from './order-equipment.entity';
 import { Signature } from '../../signatures/entities/signature.entity';
 
 export enum OrderStatus {
@@ -47,7 +48,7 @@ export class ServiceOrder {
   @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 
-  @Column({ name: 'device_id' })
+  @Column({ name: 'device_id', nullable: true })
   deviceId: string;
 
   @ManyToOne(() => Device)
@@ -103,8 +104,8 @@ export class ServiceOrder {
   @Column({ name: 'closed_at', nullable: true })
   closedAt: Date;
 
-  @Column({ name: 'group_id', nullable: true })
-  groupId: string;
+  @OneToMany(() => OrderEquipment, (eq) => eq.order, { cascade: true })
+  equipments: OrderEquipment[];
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];

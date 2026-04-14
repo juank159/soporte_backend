@@ -10,6 +10,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus } from '../entities/service-order.entity';
+import { EquipmentStatus } from '../entities/order-equipment.entity';
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 'Pantalla LCD Samsung S24' })
@@ -26,14 +27,7 @@ export class CreateOrderItemDto {
   unitPrice: number;
 }
 
-export class CreateOrderDto {
-  // Customer data (can reference existing or create inline)
-  @ApiProperty({ description: 'Existing customer ID' })
-  @IsNotEmpty()
-  @IsString()
-  customerId: string;
-
-  // Device data
+export class EquipmentDto {
   @ApiProperty({ example: 'Celular' })
   @IsNotEmpty()
   @IsString()
@@ -48,6 +42,54 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @IsString()
   deviceModel: string;
+
+  @ApiPropertyOptional({ example: 'RZ8G1234ABC' })
+  @IsOptional()
+  @IsString()
+  deviceSerial?: string;
+
+  @ApiPropertyOptional({ example: 'Negro' })
+  @IsOptional()
+  @IsString()
+  deviceColor?: string;
+
+  @ApiPropertyOptional({ example: ['Cargador', 'Funda'] })
+  @IsOptional()
+  @IsArray()
+  accessories?: string[];
+
+  @ApiProperty({ example: 'No enciende, se mojó ayer' })
+  @IsNotEmpty()
+  @IsString()
+  problemReported: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  technicianId?: string;
+}
+
+export class CreateOrderDto {
+  @ApiProperty({ description: 'Existing customer ID' })
+  @IsNotEmpty()
+  @IsString()
+  customerId: string;
+
+  // Single device (backward compatible)
+  @ApiPropertyOptional({ example: 'Celular' })
+  @IsOptional()
+  @IsString()
+  deviceType?: string;
+
+  @ApiPropertyOptional({ example: 'Samsung' })
+  @IsOptional()
+  @IsString()
+  deviceBrand?: string;
+
+  @ApiPropertyOptional({ example: 'Galaxy S24' })
+  @IsOptional()
+  @IsString()
+  deviceModel?: string;
 
   @ApiPropertyOptional({ example: 'RZ8G1234ABC' })
   @IsOptional()
@@ -69,11 +111,10 @@ export class CreateOrderDto {
   @IsArray()
   accessories?: string[];
 
-  // Order data
-  @ApiProperty({ example: 'No enciende, se mojó ayer' })
-  @IsNotEmpty()
+  @ApiPropertyOptional({ example: 'No enciende, se mojó ayer' })
+  @IsOptional()
   @IsString()
-  problemReported: string;
+  problemReported?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -85,16 +126,30 @@ export class CreateOrderDto {
   @IsArray()
   photos?: string[];
 
-  @ApiPropertyOptional({ description: 'Group ID to link multiple devices in one visit' })
+  // Multiple devices
+  @ApiPropertyOptional({ description: 'Array of equipment for multi-device orders' })
   @IsOptional()
-  @IsString()
-  groupId?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EquipmentDto)
+  equipments?: EquipmentDto[];
 }
 
 export class UpdateOrderStatusDto {
   @ApiProperty({ enum: OrderStatus })
   @IsEnum(OrderStatus)
   status: OrderStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class UpdateEquipmentStatusDto {
+  @ApiProperty({ enum: EquipmentStatus })
+  @IsEnum(EquipmentStatus)
+  status: EquipmentStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

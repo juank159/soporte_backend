@@ -6,12 +6,13 @@ import { ServiceOrder } from './entities/service-order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderPhoto } from './entities/order-photo.entity';
 import { OrderHistory } from './entities/order-history.entity';
+import { OrderEquipment } from './entities/order-equipment.entity';
 import { Device } from '../devices/entities/device.entity';
 import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ServiceOrder, OrderItem, OrderPhoto, OrderHistory, Device]),
+    TypeOrmModule.forFeature([ServiceOrder, OrderItem, OrderPhoto, OrderHistory, OrderEquipment, Device]),
     TenantsModule,
   ],
   controllers: [OrdersController],

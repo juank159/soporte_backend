@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Patch,
   Body,
   Param,
@@ -20,6 +19,7 @@ import { OrdersService } from './orders.service';
 import {
   CreateOrderDto,
   UpdateOrderStatusDto,
+  UpdateEquipmentStatusDto,
   AddDiagnosisDto,
 } from './dto/create-order.dto';
 import { TenantGuard } from '../common/guards/tenant.guard';
@@ -45,7 +45,6 @@ export class OrdersController {
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateOrderDto,
   ) {
-    // Validate subscription is active
     await this.subscriptionService.validateCanCreateOrder(tenantId);
     return this.ordersService.create(tenantId, dto);
   }
@@ -64,15 +63,6 @@ export class OrdersController {
     @Query('dateTo') dateTo?: string,
   ) {
     return this.ordersService.findAll(tenantId, status, search, dateFrom, dateTo);
-  }
-
-  @Get('group/:groupId')
-  @ApiOperation({ summary: 'Get all orders in a group' })
-  findByGroup(
-    @CurrentTenant() tenantId: string,
-    @Param('groupId') groupId: string,
-  ) {
-    return this.ordersService.findByGroup(tenantId, groupId);
   }
 
   @Get(':id')
@@ -107,6 +97,49 @@ export class OrdersController {
   ) {
     return this.ordersService.updateStatus(
       tenantId, id, dto, user?.id, user?.fullName,
+    );
+  }
+
+  // ===== EQUIPMENT ENDPOINTS =====
+  @Patch(':id/equipments/:equipmentId/status')
+  @ApiOperation({ summary: 'Update individual equipment status' })
+  updateEquipmentStatus(
+    @CurrentTenant() tenantId: string,
+    @Param('id') orderId: string,
+    @Param('equipmentId') equipmentId: string,
+    @Body() dto: UpdateEquipmentStatusDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.ordersService.updateEquipmentStatus(
+      tenantId, orderId, equipmentId, dto, user?.id, user?.fullName,
+    );
+  }
+
+  @Patch(':id/equipments/:equipmentId/diagnosis')
+  @ApiOperation({ summary: 'Add diagnosis to equipment' })
+  addEquipmentDiagnosis(
+    @CurrentTenant() tenantId: string,
+    @Param('id') orderId: string,
+    @Param('equipmentId') equipmentId: string,
+    @Body() body: { diagnosis: string; laborCost?: number },
+  ) {
+    return this.ordersService.addEquipmentDiagnosis(
+      tenantId, orderId, equipmentId, body.diagnosis, body.laborCost,
+    );
+  }
+
+  @Post(':id/equipments/:equipmentId/assign')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @ApiOperation({ summary: 'Assign technician to equipment' })
+  assignEquipmentTechnician(
+    @CurrentTenant() tenantId: string,
+    @Param('id') orderId: string,
+    @Param('equipmentId') equipmentId: string,
+    @Body('technicianId') technicianId: string,
+  ) {
+    return this.ordersService.assignEquipmentTechnician(
+      tenantId, orderId, equipmentId, technicianId,
     );
   }
 

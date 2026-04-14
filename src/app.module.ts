@@ -32,6 +32,7 @@ import { Signature } from './signatures/entities/signature.entity';
 import { Printer } from './printers/entities/printer.entity';
 import { AuditLog } from './common/entities/audit-log.entity';
 import { OrderHistory } from './orders/entities/order-history.entity';
+import { OrderEquipment } from './orders/entities/order-equipment.entity';
 
 @Module({
   imports: [
@@ -59,12 +60,13 @@ import { OrderHistory } from './orders/entities/order-history.entity';
           Printer,
           AuditLog,
           OrderHistory,
+          OrderEquipment,
           DeviceType,
           DeviceBrand,
           Subscription,
           DeviceSession,
         ],
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: true,
         logging: configService.get('NODE_ENV') === 'development',
       }),
     }),

@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ServiceOrder, OrderStatus } from './entities/service-order.entity';
+import { OrderEquipment, EquipmentStatus } from './entities/order-equipment.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderPhoto } from './entities/order-photo.entity';
 import { OrderHistory } from './entities/order-history.entity';
@@ -9,6 +10,7 @@ import { Device } from '../devices/entities/device.entity';
 import {
   CreateOrderDto,
   UpdateOrderStatusDto,
+  UpdateEquipmentStatusDto,
   AddDiagnosisDto,
 } from './dto/create-order.dto';
 import { CloudinaryService } from '../storage/cloudinary.service';
@@ -18,6 +20,8 @@ export class OrdersService {
   constructor(
     @InjectRepository(ServiceOrder)
     private ordersRepository: Repository<ServiceOrder>,
+    @InjectRepository(OrderEquipment)
+    private equipmentRepository: Repository<OrderEquipment>,
     @InjectRepository(OrderItem)
     private itemsRepository: Repository<OrderItem>,
     @InjectRepository(OrderPhoto)
@@ -30,36 +34,60 @@ export class OrdersService {
   ) {}
 
   async create(tenantId: string, dto: CreateOrderDto) {
-    // Create device
-    const device = this.devicesRepository.create({
-      tenantId,
-      type: dto.deviceType,
-      brand: dto.deviceBrand,
-      model: dto.deviceModel,
-      serial: dto.deviceSerial,
-      imei: dto.deviceImei,
-      color: dto.deviceColor,
-      accessories: dto.accessories,
-    });
-    const savedDevice = await this.devicesRepository.save(device);
-
-    // Generate order number
     const orderNumber = await this.generateOrderNumber(tenantId);
+
+    // Determine if multi-device or single-device
+    const hasEquipments = dto.equipments && dto.equipments.length > 0;
+
+    let savedDevice: Device | null = null;
+
+    // For backward compatibility: if single device fields are provided, create Device
+    if (!hasEquipments && dto.deviceType) {
+      const device = this.devicesRepository.create({
+        tenantId,
+        type: dto.deviceType,
+        brand: dto.deviceBrand,
+        model: dto.deviceModel,
+        serial: dto.deviceSerial,
+        imei: dto.deviceImei,
+        color: dto.deviceColor,
+        accessories: dto.accessories,
+      });
+      savedDevice = await this.devicesRepository.save(device);
+    }
 
     // Create order
     const order = this.ordersRepository.create({
       tenantId,
       orderNumber,
       customerId: dto.customerId,
-      deviceId: savedDevice.id,
+      deviceId: savedDevice?.id || null,
       technicianId: dto.technicianId,
-      problemReported: dto.problemReported,
+      problemReported: dto.problemReported || (hasEquipments ? 'Ver equipos' : ''),
       status: OrderStatus.RECEIVED,
-      groupId: dto.groupId || undefined,
     });
     const savedOrder = await this.ordersRepository.save(order);
 
-    // Save photos if provided
+    // Save equipments if multi-device
+    if (hasEquipments) {
+      for (const eq of dto.equipments) {
+        const equipment = this.equipmentRepository.create({
+          orderId: savedOrder.id,
+          deviceType: eq.deviceType,
+          deviceBrand: eq.deviceBrand,
+          deviceModel: eq.deviceModel,
+          deviceSerial: eq.deviceSerial,
+          deviceColor: eq.deviceColor,
+          accessories: eq.accessories,
+          problemReported: eq.problemReported,
+          technicianId: eq.technicianId,
+          status: EquipmentStatus.RECEIVED,
+        });
+        await this.equipmentRepository.save(equipment);
+      }
+    }
+
+    // Save photos if provided (for single device)
     if (dto.photos?.length) {
       const photos = dto.photos.map((photoUrl) =>
         this.photosRepository.create({
@@ -88,6 +116,7 @@ export class OrdersService {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.customer', 'c')
       .leftJoinAndSelect('o.device', 'd')
+      .leftJoinAndSelect('o.equipments', 'eq')
       .where('o.tenantId = :tenantId', { tenantId });
 
     if (status) {
@@ -119,7 +148,7 @@ export class OrdersService {
     if (status) where.status = status;
     return this.ordersRepository.find({
       where,
-      relations: ['customer', 'device'],
+      relations: ['customer', 'device', 'equipments'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -127,7 +156,7 @@ export class OrdersService {
   async findOne(tenantId: string, id: string) {
     const order = await this.ordersRepository.findOne({
       where: { id, tenantId },
-      relations: ['customer', 'device', 'items', 'signatures'],
+      relations: ['customer', 'device', 'items', 'signatures', 'equipments'],
     });
     if (!order) throw new NotFoundException('Order not found');
     return order;
@@ -164,7 +193,7 @@ export class OrdersService {
   async findByOrderNumber(tenantId: string, orderNumber: string) {
     const order = await this.ordersRepository.findOne({
       where: { orderNumber, tenantId },
-      relations: ['customer', 'device', 'items', 'signatures'],
+      relations: ['customer', 'device', 'items', 'signatures', 'equipments'],
     });
     if (!order) throw new NotFoundException('Order not found');
     return order;
@@ -194,21 +223,147 @@ export class OrdersService {
     }
 
     await this.ordersRepository.save(order);
-
-    // Register in history
     await this.addHistory(id, fromStatus, dto.status, dto.notes, userId, userName);
 
     return this.findOne(tenantId, id);
   }
 
-  async addDiagnosis(tenantId: string, id: string, dto: AddDiagnosisDto) {
+  // ===== EQUIPMENT STATUS =====
+  async updateEquipmentStatus(
+    tenantId: string,
+    orderId: string,
+    equipmentId: string,
+    dto: UpdateEquipmentStatusDto,
+    userId?: string,
+    userName?: string,
+  ) {
     // Verify order belongs to tenant
+    await this.findOne(tenantId, orderId);
+
+    const equipment = await this.equipmentRepository.findOne({
+      where: { id: equipmentId, orderId },
+    });
+    if (!equipment) throw new NotFoundException('Equipment not found');
+
+    const fromStatus = equipment.status;
+    equipment.status = dto.status;
+    if (dto.notes) equipment.notes = dto.notes;
+
+    if (dto.status === EquipmentStatus.DELIVERED) {
+      equipment.deliveredAt = new Date();
+    }
+    if (dto.status === EquipmentStatus.CLOSED) {
+      equipment.closedAt = new Date();
+    }
+
+    await this.equipmentRepository.save(equipment);
+
+    // Add to order history with equipment reference
+    const eqLabel = `${equipment.deviceType} ${equipment.deviceBrand} ${equipment.deviceModel}`;
+    await this.addHistory(
+      orderId,
+      fromStatus,
+      dto.status,
+      `[${eqLabel}] ${dto.notes || ''}`.trim(),
+      userId,
+      userName,
+    );
+
+    // Auto-update order status based on equipment statuses
+    await this.syncOrderStatus(tenantId, orderId);
+
+    return this.findOne(tenantId, orderId);
+  }
+
+  async addEquipmentDiagnosis(
+    tenantId: string,
+    orderId: string,
+    equipmentId: string,
+    diagnosis: string,
+    laborCost?: number,
+  ) {
+    await this.findOne(tenantId, orderId);
+
+    const equipment = await this.equipmentRepository.findOne({
+      where: { id: equipmentId, orderId },
+    });
+    if (!equipment) throw new NotFoundException('Equipment not found');
+
+    equipment.diagnosis = diagnosis;
+    equipment.status = EquipmentStatus.DIAGNOSING;
+    if (laborCost !== undefined) {
+      equipment.laborCost = laborCost;
+    }
+
+    await this.equipmentRepository.save(equipment);
+    return this.findOne(tenantId, orderId);
+  }
+
+  async assignEquipmentTechnician(
+    tenantId: string,
+    orderId: string,
+    equipmentId: string,
+    technicianId: string,
+  ) {
+    await this.findOne(tenantId, orderId);
+
+    const equipment = await this.equipmentRepository.findOne({
+      where: { id: equipmentId, orderId },
+    });
+    if (!equipment) throw new NotFoundException('Equipment not found');
+
+    equipment.technicianId = technicianId;
+    await this.equipmentRepository.save(equipment);
+    return this.findOne(tenantId, orderId);
+  }
+
+  private async syncOrderStatus(tenantId: string, orderId: string) {
+    const equipments = await this.equipmentRepository.find({
+      where: { orderId },
+    });
+    if (equipments.length === 0) return;
+
+    const statuses = equipments.map((e) => e.status);
+    let orderStatus: OrderStatus;
+
+    // If all are delivered/closed/returned → order is delivered
+    if (statuses.every((s) => [EquipmentStatus.DELIVERED, EquipmentStatus.CLOSED, EquipmentStatus.RETURNED].includes(s))) {
+      orderStatus = OrderStatus.DELIVERED;
+    }
+    // If all closed/returned → closed
+    else if (statuses.every((s) => [EquipmentStatus.CLOSED, EquipmentStatus.RETURNED].includes(s))) {
+      orderStatus = OrderStatus.CLOSED;
+    }
+    // If any is repairing → repairing
+    else if (statuses.some((s) => s === EquipmentStatus.REPAIRING)) {
+      orderStatus = OrderStatus.REPAIRING;
+    }
+    // If any is diagnosing → diagnosing
+    else if (statuses.some((s) => s === EquipmentStatus.DIAGNOSING)) {
+      orderStatus = OrderStatus.DIAGNOSING;
+    }
+    // If any is quality_check → quality_check
+    else if (statuses.some((s) => s === EquipmentStatus.QUALITY_CHECK)) {
+      orderStatus = OrderStatus.QUALITY_CHECK;
+    }
+    // If any is ready → ready
+    else if (statuses.some((s) => s === EquipmentStatus.READY)) {
+      orderStatus = OrderStatus.READY;
+    }
+    // Default: received
+    else {
+      orderStatus = OrderStatus.RECEIVED;
+    }
+
+    await this.ordersRepository.update(orderId, { status: orderStatus });
+  }
+
+  async addDiagnosis(tenantId: string, id: string, dto: AddDiagnosisDto) {
     const order = await this.ordersRepository.findOne({
       where: { id, tenantId },
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // Update diagnosis fields
     order.diagnosis = dto.diagnosis;
     order.status = OrderStatus.DIAGNOSING;
 
@@ -216,7 +371,6 @@ export class OrdersService {
       order.laborCost = dto.laborCost;
     }
 
-    // Save items separately to avoid cascade issues
     if (dto.items?.length) {
       for (const item of dto.items) {
         const orderItem = this.itemsRepository.create({
@@ -230,24 +384,21 @@ export class OrdersService {
       }
     }
 
-    // Recalculate totals
     const allItems = await this.itemsRepository.find({
       where: { orderId: id },
     });
     const itemsTotal = allItems.reduce((sum, i) => sum + Number(i.total), 0);
     order.subtotal = itemsTotal + Number(order.laborCost);
-    order.tax = order.subtotal * 0.19; // IVA Colombia 19%
+    order.tax = order.subtotal * 0.19;
     order.total = order.subtotal + order.tax;
 
     await this.ordersRepository.save(order);
-
     return this.findOne(tenantId, id);
   }
 
   async addPhoto(tenantId: string, orderId: string, photoUrl: string, description?: string, stage?: string) {
     await this.findOne(tenantId, orderId);
 
-    // Upload to Cloudinary if it's base64
     let finalUrl = photoUrl;
     if (photoUrl.startsWith('data:') || photoUrl.length > 500) {
       finalUrl = await this.cloudinaryService.uploadBase64(
@@ -295,18 +446,9 @@ export class OrdersService {
     return this.findOne(tenantId, orderId);
   }
 
-  async findByGroup(tenantId: string, groupId: string) {
-    return this.ordersRepository.find({
-      where: { tenantId, groupId },
-      relations: ['customer', 'device', 'items', 'signatures'],
-      order: { createdAt: 'ASC' },
-    });
-  }
-
   private async generateOrderNumber(tenantId: string): Promise<string> {
     const year = new Date().getFullYear();
 
-    // Get the highest order number for this tenant and year
     const lastOrder = await this.ordersRepository
       .createQueryBuilder('o')
       .where('o.tenantId = :tenantId', { tenantId })
@@ -316,7 +458,6 @@ export class OrdersService {
 
     let nextNumber = 1;
     if (lastOrder) {
-      // Extract the number part: ORD-2026-00015 -> 15
       const parts = lastOrder.orderNumber.split('-');
       const lastNum = parseInt(parts[parts.length - 1], 10);
       if (!isNaN(lastNum)) {
