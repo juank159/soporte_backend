@@ -218,9 +218,6 @@ export class OrdersService {
     if (dto.status === OrderStatus.DELIVERED) {
       order.deliveredAt = new Date();
     }
-    if (dto.status === OrderStatus.CLOSED) {
-      order.closedAt = new Date();
-    }
 
     await this.ordersRepository.save(order);
     await this.addHistory(id, fromStatus, dto.status, dto.notes, userId, userName);
@@ -251,9 +248,6 @@ export class OrdersService {
 
     if (dto.status === EquipmentStatus.DELIVERED) {
       equipment.deliveredAt = new Date();
-    }
-    if (dto.status === EquipmentStatus.CLOSED) {
-      equipment.closedAt = new Date();
     }
 
     await this.equipmentRepository.save(equipment);
@@ -326,13 +320,9 @@ export class OrdersService {
     const statuses = equipments.map((e) => e.status);
     let orderStatus: OrderStatus;
 
-    // If all are delivered/closed/returned → order is delivered
-    if (statuses.every((s) => [EquipmentStatus.DELIVERED, EquipmentStatus.CLOSED, EquipmentStatus.RETURNED].includes(s))) {
+    // If all are delivered/returned → order is delivered
+    if (statuses.every((s) => [EquipmentStatus.DELIVERED, EquipmentStatus.RETURNED].includes(s))) {
       orderStatus = OrderStatus.DELIVERED;
-    }
-    // If all closed/returned → closed
-    else if (statuses.every((s) => [EquipmentStatus.CLOSED, EquipmentStatus.RETURNED].includes(s))) {
-      orderStatus = OrderStatus.CLOSED;
     }
     // If any is repairing → repairing
     else if (statuses.some((s) => s === EquipmentStatus.REPAIRING)) {
@@ -341,10 +331,6 @@ export class OrdersService {
     // If any is diagnosing → diagnosing
     else if (statuses.some((s) => s === EquipmentStatus.DIAGNOSING)) {
       orderStatus = OrderStatus.DIAGNOSING;
-    }
-    // If any is quality_check → quality_check
-    else if (statuses.some((s) => s === EquipmentStatus.QUALITY_CHECK)) {
-      orderStatus = OrderStatus.QUALITY_CHECK;
     }
     // If any is ready → ready
     else if (statuses.some((s) => s === EquipmentStatus.READY)) {

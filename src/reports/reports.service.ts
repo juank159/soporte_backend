@@ -25,12 +25,9 @@ export class ReportsService {
       });
     }
 
-    // Revenue includes delivered + closed orders
+    // Revenue from delivered orders
     const completedOrders = await this.ordersRepository.find({
-      where: [
-        { tenantId, status: OrderStatus.DELIVERED },
-        { tenantId, status: OrderStatus.CLOSED },
-      ],
+      where: { tenantId, status: OrderStatus.DELIVERED },
     });
 
     const totalRevenue = completedOrders.reduce(
@@ -64,8 +61,8 @@ export class ReportsService {
       .leftJoinAndSelect('o.customer', 'c')
       .leftJoinAndSelect('o.items', 'i')
       .where('o.tenantId = :tenantId', { tenantId })
-      .andWhere('o.status IN (:...statuses)', {
-        statuses: [OrderStatus.DELIVERED, OrderStatus.CLOSED],
+      .andWhere('o.status = :status', {
+        status: OrderStatus.DELIVERED,
       })
       .andWhere(
         'COALESCE(o.deliveredAt, o.createdAt) BETWEEN :start AND :end',
@@ -121,10 +118,7 @@ export class ReportsService {
 
     for (const tech of technicians) {
       const completedOrders = await this.ordersRepository.count({
-        where: [
-          { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
-          { tenantId, technicianId: tech.id, status: OrderStatus.CLOSED },
-        ],
+        where: { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
       });
 
       const activeOrders = await this.ordersRepository.count({
@@ -135,10 +129,7 @@ export class ReportsService {
       });
 
       const orders = await this.ordersRepository.find({
-        where: [
-          { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
-          { tenantId, technicianId: tech.id, status: OrderStatus.CLOSED },
-        ],
+        where: { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
       });
 
       const totalRevenue = orders.reduce(
@@ -198,7 +189,6 @@ export class ReportsService {
       OrderStatus.RECEIVED,
       OrderStatus.DIAGNOSING,
       OrderStatus.REPAIRING,
-      OrderStatus.QUALITY_CHECK,
       OrderStatus.READY,
     ];
 

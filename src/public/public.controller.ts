@@ -126,11 +126,9 @@ export class PublicController {
       received: 'Recibido',
       diagnosing: 'En Diagnostico',
       repairing: 'En Reparacion',
-      quality_check: 'Control de Calidad',
-      ready: 'Listo para Entrega',
+      ready: 'Listo',
       returned: 'Devuelto',
       delivered: 'Entregado',
-      closed: 'Cerrado',
     };
     return labels[status] || status;
   }
@@ -144,7 +142,6 @@ export class PublicController {
       { key: 'received', label: 'Recibido', icon: '📥' },
       { key: 'diagnosing', label: 'Diagnostico', icon: '🔍' },
       { key: 'repairing', label: 'Reparacion', icon: '🔧' },
-      { key: 'quality_check', label: 'Control Calidad', icon: '✅' },
       { key: 'ready', label: 'Listo', icon: '📦' },
       { key: 'delivered', label: 'Entregado', icon: '🚀' },
     ];
