@@ -61,15 +61,15 @@ export class OrdersService {
       tenantId,
       orderNumber,
       customerId: dto.customerId,
-      deviceId: savedDevice?.id || null,
+      deviceId: savedDevice?.id || undefined,
       technicianId: dto.technicianId,
       problemReported: dto.problemReported || (hasEquipments ? 'Ver equipos' : ''),
       status: OrderStatus.RECEIVED,
     });
-    const savedOrder = await this.ordersRepository.save(order);
+    const savedOrder = await this.ordersRepository.save(order) as ServiceOrder;
 
     // Save equipments if multi-device
-    if (hasEquipments) {
+    if (hasEquipments && dto.equipments) {
       for (const eq of dto.equipments) {
         const equipment = this.equipmentRepository.create({
           orderId: savedOrder.id,
@@ -89,14 +89,14 @@ export class OrdersService {
 
     // Save photos if provided (for single device)
     if (dto.photos?.length) {
-      const photos = dto.photos.map((photoUrl) =>
-        this.photosRepository.create({
+      for (const photoUrl of dto.photos) {
+        const photo = this.photosRepository.create({
           orderId: savedOrder.id,
           photoUrl,
           takenAtStage: 'reception',
-        }),
-      );
-      await this.photosRepository.save(photos);
+        });
+        await this.photosRepository.save(photo);
+      }
     }
 
     // Register creation in history
