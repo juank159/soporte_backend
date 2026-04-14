@@ -358,21 +358,21 @@ export class PublicController {
       ${technicianName ? `<div class="info-row"><span class="label">Tecnico</span><span class="value">${technicianName}</span></div>` : ''}
     </div>` : ''}
 
-    ${equipments.length > 0 ? `
+    ${equipments.length > 0 ? equipments.map((eq, i) => `
     <div class="card">
-      <div class="section-title">Equipos (${equipments.length})</div>
-      ${equipments.map((eq, i) => `
-        <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:10px;padding:12px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <strong style="font-size:13px;">${i+1}. ${eq.deviceType} ${eq.deviceBrand} ${eq.deviceModel}</strong>
-            <span class="status-badge" style="font-size:10px;padding:3px 10px;">${this.getStatusLabel(eq.status)}</span>
-          </div>
-          ${eq.deviceSerial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${eq.deviceSerial}</span></div>` : ''}
-          <div class="info-row"><span class="label">Problema</span><span class="value">${eq.problemReported}</span></div>
-          ${eq.diagnosis ? `<div class="info-row"><span class="label">Diagnostico</span><span class="value">${eq.diagnosis}</span></div>` : ''}
-        </div>
-      `).join('')}
-    </div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="section-title" style="margin:0;">Equipo ${i+1}</div>
+        <span class="status-badge ${eq.status === 'ready' || eq.status === 'delivered' ? eq.status : ''}" style="font-size:10px;padding:4px 12px;">${this.getStatusLabel(eq.status)}</span>
+      </div>
+      <div class="info-row"><span class="label">Tipo</span><span class="value">${eq.deviceType}</span></div>
+      <div class="info-row"><span class="label">Marca</span><span class="value">${eq.deviceBrand}</span></div>
+      <div class="info-row"><span class="label">Modelo</span><span class="value">${eq.deviceModel}</span></div>
+      ${eq.deviceSerial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${eq.deviceSerial}</span></div>` : ''}
+      ${eq.accessories && eq.accessories.length > 0 ? `<div class="info-row"><span class="label">Accesorios</span><span class="value">${eq.accessories.join(', ')}</span></div>` : ''}
+      <div class="info-row"><span class="label">Problema</span><span class="value">${eq.problemReported}</span></div>
+      ${eq.diagnosis ? `<div class="info-row"><span class="label">Diagnostico</span><span class="value">${eq.diagnosis}</span></div>` : ''}
+      ${eq.status === 'returned' ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#EF4444;font-size:12px;font-weight:600;">⚠️ Equipo devuelto</div>` : ''}
+    </div>`).join('') : ''}
 
     <div class="card">
       <div class="section-title">Informacion</div>
