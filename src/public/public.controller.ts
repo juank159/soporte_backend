@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Response } from 'express';
 import { ServiceOrder } from '../orders/entities/service-order.entity';
+import { OrderEquipment } from '../orders/entities/order-equipment.entity';
 import { OrderHistory } from '../orders/entities/order-history.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
@@ -27,7 +28,7 @@ export class PublicController {
   async getOrderStatus(@Param('orderId') orderId: string) {
     const order = await this.ordersRepository.findOne({
       where: { id: orderId },
-      relations: ['device'],
+      relations: ['device', 'equipments'],
     });
 
     if (!order) {
@@ -49,6 +50,16 @@ export class PublicController {
             model: order.device.model,
           }
         : null,
+      equipments: (order.equipments || []).map(eq => ({
+        deviceType: eq.deviceType,
+        deviceBrand: eq.deviceBrand,
+        deviceModel: eq.deviceModel,
+        deviceSerial: eq.deviceSerial,
+        status: eq.status,
+        statusLabel: this.getStatusLabel(eq.status),
+        problemReported: eq.problemReported,
+        diagnosis: eq.diagnosis,
+      })),
       createdAt: order.createdAt,
       deliveredAt: order.deliveredAt,
       tenant: tenant
@@ -72,7 +83,7 @@ export class PublicController {
     try {
       const order = await this.ordersRepository.findOne({
         where: { id: orderId },
-        relations: ['device'],
+        relations: ['device', 'equipments'],
       });
 
       if (!order) {
@@ -92,7 +103,7 @@ export class PublicController {
 
       const history = await this.getOrderHistory(order.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(this.renderStatusPage(order, tenant, history, techName));
+      res.send(this.renderStatusPage(order, tenant, history, techName, order.equipments || []));
     } catch {
       res.status(500).send(this.renderErrorPage('Error del servidor'));
     }
@@ -117,6 +128,7 @@ export class PublicController {
       repairing: 'En Reparacion',
       quality_check: 'Control de Calidad',
       ready: 'Listo para Entrega',
+      returned: 'Devuelto',
       delivered: 'Entregado',
       closed: 'Cerrado',
     };
@@ -165,7 +177,7 @@ export class PublicController {
     }
   }
 
-  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>, technicianName?: string): string {
+  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>, technicianName?: string, equipments: OrderEquipment[] = []): string {
     const statusLabel = this.getStatusLabel(order.status);
     const timeline = this.getTimeline(order);
     const device = order.device;
@@ -344,6 +356,22 @@ export class PublicController {
       ${device.serial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${device.serial}</span></div>` : ''}
       ${device.accessories && device.accessories.length > 0 ? `<div class="info-row"><span class="label">Accesorios</span><span class="value">${device.accessories.join(', ')}</span></div>` : ''}
       ${technicianName ? `<div class="info-row"><span class="label">Tecnico</span><span class="value">${technicianName}</span></div>` : ''}
+    </div>` : ''}
+
+    ${equipments.length > 0 ? `
+    <div class="card">
+      <div class="section-title">Equipos (${equipments.length})</div>
+      ${equipments.map((eq, i) => `
+        <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:13px;">${i+1}. ${eq.deviceType} ${eq.deviceBrand} ${eq.deviceModel}</strong>
+            <span class="status-badge" style="font-size:10px;padding:3px 10px;">${this.getStatusLabel(eq.status)}</span>
+          </div>
+          ${eq.deviceSerial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${eq.deviceSerial}</span></div>` : ''}
+          <div class="info-row"><span class="label">Problema</span><span class="value">${eq.problemReported}</span></div>
+          ${eq.diagnosis ? `<div class="info-row"><span class="label">Diagnostico</span><span class="value">${eq.diagnosis}</span></div>` : ''}
+        </div>
+      `).join('')}
     </div>` : ''}
 
     <div class="card">
