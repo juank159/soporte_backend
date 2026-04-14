@@ -136,6 +136,10 @@ export class PublicController {
   }
 
   private getTimeline(order: ServiceOrder) {
+    return this.getTimelineForStatus(order.status);
+  }
+
+  private getTimelineForStatus(status: string) {
     const stages = [
       { key: 'received', label: 'Recibido', icon: '📥' },
       { key: 'diagnosing', label: 'Diagnostico', icon: '🔍' },
@@ -145,12 +149,25 @@ export class PublicController {
       { key: 'delivered', label: 'Entregado', icon: '🚀' },
     ];
 
-    const currentIndex = stages.findIndex((s) => s.key === order.status);
+    const currentIndex = stages.findIndex((s) => s.key === status);
     return stages.map((s, i) => ({
       ...s,
       completed: i <= currentIndex,
       current: i === currentIndex,
     }));
+  }
+
+  private renderTimelineHtml(status: string): string {
+    const timeline = this.getTimelineForStatus(status);
+    return timeline
+      .map(
+        (s) => `
+        <div class="step ${s.completed ? 'completed' : ''} ${s.current ? 'current' : ''}">
+          <div class="step-icon">${s.icon}</div>
+          <div class="step-label">${s.label}</div>
+        </div>`,
+      )
+      .join('<div class="step-line"></div>');
   }
 
   private formatDate(date: Date | string, timezone: string, includeTime = true): string {
@@ -343,11 +360,12 @@ export class PublicController {
       <div class="status-badge ${order.status === 'ready' || order.status === 'delivered' ? order.status : ''}">${statusLabel}</div>
     </div>
 
+    ${equipments.length === 0 ? `
     <div class="card">
       <div class="timeline">${timelineHtml}</div>
-    </div>
+    </div>` : ''}
 
-    ${device ? `
+    ${device && equipments.length === 0 ? `
     <div class="card">
       <div class="section-title">Equipo</div>
       <div class="info-row"><span class="label">Tipo</span><span class="value">${device.type}</span></div>
@@ -360,10 +378,11 @@ export class PublicController {
 
     ${equipments.length > 0 ? equipments.map((eq, i) => `
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <div class="section-title" style="margin:0;">Equipo ${i+1}</div>
         <span class="status-badge ${eq.status === 'ready' || eq.status === 'delivered' ? eq.status : ''}" style="font-size:10px;padding:4px 12px;">${this.getStatusLabel(eq.status)}</span>
       </div>
+      <div class="timeline" style="margin-bottom:10px;">${this.renderTimelineHtml(eq.status)}</div>
       <div class="info-row"><span class="label">Tipo</span><span class="value">${eq.deviceType}</span></div>
       <div class="info-row"><span class="label">Marca</span><span class="value">${eq.deviceBrand}</span></div>
       <div class="info-row"><span class="label">Modelo</span><span class="value">${eq.deviceModel}</span></div>
@@ -371,7 +390,7 @@ export class PublicController {
       ${eq.accessories && eq.accessories.length > 0 ? `<div class="info-row"><span class="label">Accesorios</span><span class="value">${eq.accessories.join(', ')}</span></div>` : ''}
       <div class="info-row"><span class="label">Problema</span><span class="value">${eq.problemReported}</span></div>
       ${eq.diagnosis ? `<div class="info-row"><span class="label">Diagnostico</span><span class="value">${eq.diagnosis}</span></div>` : ''}
-      ${eq.status === 'returned' ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#EF4444;font-size:12px;font-weight:600;">⚠️ Equipo devuelto</div>` : ''}
+      ${eq.status === 'returned' ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#EF4444;font-size:12px;font-weight:600;">⚠️ Equipo devuelto sin reparar</div>` : ''}
     </div>`).join('') : ''}
 
     <div class="card">
