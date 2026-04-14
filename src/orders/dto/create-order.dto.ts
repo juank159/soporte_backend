@@ -84,6 +84,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsArray()
   photos?: string[];
+
+  @ApiPropertyOptional({ description: 'Group ID to link multiple devices in one visit' })
+  @IsOptional()
+  @IsString()
+  groupId?: string;
 }
 
 export class UpdateOrderStatusDto {

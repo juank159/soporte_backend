@@ -20,6 +20,7 @@ export enum OrderStatus {
   REPAIRING = 'repairing',
   QUALITY_CHECK = 'quality_check',
   READY = 'ready',
+  RETURNED = 'returned',
   DELIVERED = 'delivered',
   CLOSED = 'closed',
 }
@@ -101,6 +102,9 @@ export class ServiceOrder {
 
   @Column({ name: 'closed_at', nullable: true })
   closedAt: Date;
+
+  @Column({ name: 'group_id', nullable: true })
+  groupId: string;
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];

@@ -66,6 +66,15 @@ export class OrdersController {
     return this.ordersService.findAll(tenantId, status, search, dateFrom, dateTo);
   }
 
+  @Get('group/:groupId')
+  @ApiOperation({ summary: 'Get all orders in a group' })
+  findByGroup(
+    @CurrentTenant() tenantId: string,
+    @Param('groupId') groupId: string,
+  ) {
+    return this.ordersService.findByGroup(tenantId, groupId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {

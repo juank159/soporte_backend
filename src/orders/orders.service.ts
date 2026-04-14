@@ -55,6 +55,7 @@ export class OrdersService {
       technicianId: dto.technicianId,
       problemReported: dto.problemReported,
       status: OrderStatus.RECEIVED,
+      groupId: dto.groupId || undefined,
     });
     const savedOrder = await this.ordersRepository.save(order);
 
@@ -292,6 +293,14 @@ export class OrdersService {
     order.technicianId = technicianId;
     await this.ordersRepository.save(order);
     return this.findOne(tenantId, orderId);
+  }
+
+  async findByGroup(tenantId: string, groupId: string) {
+    return this.ordersRepository.find({
+      where: { tenantId, groupId },
+      relations: ['customer', 'device', 'items', 'signatures'],
+      order: { createdAt: 'ASC' },
+    });
   }
 
   private async generateOrderNumber(tenantId: string): Promise<string> {
