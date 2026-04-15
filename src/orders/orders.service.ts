@@ -212,25 +212,25 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
 
     const fromStatus = order.status;
-    order.status = dto.status;
+    const updateData: any = { status: dto.status };
 
     // Save notes in the right field based on status
     if (dto.notes) {
       if (dto.status === OrderStatus.DIAGNOSING) {
-        order.diagnosis = dto.notes;
+        updateData.diagnosis = dto.notes;
       } else if (dto.status === OrderStatus.REPAIRING) {
         const existing = order.diagnosis || '';
-        order.diagnosis = existing ? `${existing}. ${dto.notes}` : dto.notes;
+        updateData.diagnosis = existing ? `${existing}. ${dto.notes}` : dto.notes;
       } else {
-        order.notes = dto.notes;
+        updateData.notes = dto.notes;
       }
     }
 
     if (dto.status === OrderStatus.DELIVERED) {
-      order.deliveredAt = new Date();
+      updateData.deliveredAt = new Date();
     }
 
-    await this.ordersRepository.save(order);
+    await this.ordersRepository.update(id, updateData);
     await this.addHistory(id, fromStatus, dto.status, dto.notes, userId, userName);
 
     return this.findOne(tenantId, id);
@@ -388,13 +388,17 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    order.diagnosis = dto.diagnosis;
-    order.status = OrderStatus.DIAGNOSING;
+    // Build update data - only include fields we're changing
+    const updateData: Partial<ServiceOrder> = {
+      diagnosis: dto.diagnosis,
+      status: OrderStatus.DIAGNOSING,
+    };
 
     if (dto.laborCost !== undefined) {
-      order.laborCost = dto.laborCost;
+      updateData.laborCost = dto.laborCost;
     }
 
+    // Save items
     if (dto.items?.length) {
       for (const item of dto.items) {
         const orderItem = this.itemsRepository.create({
@@ -408,15 +412,15 @@ export class OrdersService {
       }
     }
 
-    const allItems = await this.itemsRepository.find({
-      where: { orderId: id },
-    });
+    // Recalculate totals
+    const allItems = await this.itemsRepository.find({ where: { orderId: id } });
     const itemsTotal = allItems.reduce((sum, i) => sum + Number(i.total), 0);
-    order.subtotal = itemsTotal + Number(order.laborCost);
-    order.tax = order.subtotal * 0.19;
-    order.total = order.subtotal + order.tax;
+    const laborCost = dto.laborCost ?? Number(order.laborCost || 0);
+    updateData.subtotal = itemsTotal + laborCost;
+    updateData.tax = updateData.subtotal * 0.19;
+    updateData.total = updateData.subtotal + updateData.tax;
 
-    await this.ordersRepository.save(order);
+    await this.ordersRepository.update(id, updateData);
     return this.findOne(tenantId, id);
   }
 
