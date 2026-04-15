@@ -341,7 +341,11 @@ export class OrdersService {
       orderStatus = OrderStatus.RECEIVED;
     }
 
-    await this.ordersRepository.update(orderId, { status: orderStatus });
+    const updateData: any = { status: orderStatus };
+    if (orderStatus === OrderStatus.DELIVERED) {
+      updateData.deliveredAt = new Date();
+    }
+    await this.ordersRepository.update(orderId, updateData);
   }
 
   async addDiagnosis(tenantId: string, id: string, dto: AddDiagnosisDto) {

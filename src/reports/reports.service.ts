@@ -25,21 +25,27 @@ export class ReportsService {
       });
     }
 
-    // Revenue from delivered orders
-    const completedOrders = await this.ordersRepository.find({
-      where: { tenantId, status: OrderStatus.DELIVERED },
-    });
+    // Revenue: sum total from ALL orders that have total > 0 (partial or full delivery)
+    const ordersWithRevenue = await this.ordersRepository
+      .createQueryBuilder('o')
+      .where('o.tenantId = :tenantId', { tenantId })
+      .andWhere('o.total > 0')
+      .getMany();
 
-    const totalRevenue = completedOrders.reduce(
+    const totalRevenue = ordersWithRevenue.reduce(
       (sum, o) => sum + Number(o.total),
       0,
     );
+
+    const completedOrders = await this.ordersRepository.count({
+      where: { tenantId, status: OrderStatus.DELIVERED },
+    });
 
     return {
       totalOrders,
       statusCounts,
       totalRevenue,
-      completedCount: completedOrders.length,
+      completedCount: completedOrders,
     };
   }
 
