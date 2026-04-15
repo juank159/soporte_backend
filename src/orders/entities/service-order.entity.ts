@@ -74,16 +74,16 @@ export class ServiceOrder {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({ name: 'labor_cost', type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ name: 'labor_cost', type: 'decimal', precision: 12, scale: 2, default: 0, nullable: true })
   laborCost: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, nullable: true })
   subtotal: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, nullable: true })
   tax: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, nullable: true })
   total: number;
 
   @Column({ name: 'warranty_days', default: 0 })
