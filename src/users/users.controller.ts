@@ -55,4 +55,14 @@ export class UsersController {
   ) {
     return this.usersService.update(tenantId, id, updateUserDto);
   }
+
+  @Put(':id/signature')
+  @ApiOperation({ summary: 'Update user signature' })
+  updateSignature(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body('signatureUrl') signatureUrl: string,
+  ) {
+    return this.usersService.updateSignature(tenantId, id, signatureUrl);
+  }
 }

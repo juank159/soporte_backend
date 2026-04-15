@@ -41,17 +41,25 @@ export class UsersService {
   async findAll(tenantId: string) {
     return this.usersRepository.find({
       where: { tenantId },
-      select: ['id', 'email', 'fullName', 'role', 'isActive', 'createdAt'],
+      select: ['id', 'email', 'fullName', 'role', 'isActive', 'createdAt', 'signatureUrl'],
     });
   }
 
   async findOne(tenantId: string, id: string) {
     const user = await this.usersRepository.findOne({
       where: { id, tenantId },
-      select: ['id', 'email', 'fullName', 'role', 'isActive', 'createdAt'],
+      select: ['id', 'email', 'fullName', 'role', 'isActive', 'createdAt', 'signatureUrl'],
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  async updateSignature(tenantId: string, id: string, signatureUrl: string) {
+    const user = await this.usersRepository.findOne({ where: { id, tenantId } });
+    if (!user) throw new NotFoundException('User not found');
+    user.signatureUrl = signatureUrl;
+    await this.usersRepository.save(user);
+    return { id: user.id, fullName: user.fullName, signatureUrl: user.signatureUrl };
   }
 
   async update(tenantId: string, id: string, updateUserDto: UpdateUserDto) {

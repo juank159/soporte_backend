@@ -45,6 +45,9 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'signature_url', type: 'text', nullable: true })
+  signatureUrl: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
