@@ -388,17 +388,7 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // Build update data - only include fields we're changing
-    const updateData: Partial<ServiceOrder> = {
-      diagnosis: dto.diagnosis,
-      status: OrderStatus.DIAGNOSING,
-    };
-
-    if (dto.laborCost !== undefined) {
-      updateData.laborCost = dto.laborCost;
-    }
-
-    // Save items
+    // Save items first
     if (dto.items?.length) {
       for (const item of dto.items) {
         const orderItem = this.itemsRepository.create({
@@ -415,12 +405,26 @@ export class OrdersService {
     // Recalculate totals
     const allItems = await this.itemsRepository.find({ where: { orderId: id } });
     const itemsTotal = allItems.reduce((sum, i) => sum + Number(i.total), 0);
-    const laborCost = dto.laborCost ?? Number(order.laborCost || 0);
-    updateData.subtotal = itemsTotal + laborCost;
-    updateData.tax = updateData.subtotal * 0.19;
-    updateData.total = updateData.subtotal + updateData.tax;
+    const laborCost = dto.laborCost !== undefined ? dto.laborCost : Number(order.laborCost ?? 0);
+    const subtotal = itemsTotal + laborCost;
+    const tax = subtotal * 0.19;
+    const total = subtotal + tax;
 
-    await this.ordersRepository.update(id, updateData);
+    // Use raw query to avoid any TypeORM null issues
+    await this.ordersRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        diagnosis: dto.diagnosis,
+        status: OrderStatus.DIAGNOSING,
+        laborCost: laborCost,
+        subtotal: subtotal,
+        tax: tax,
+        total: total,
+      })
+      .where('id = :id', { id })
+      .execute();
+
     return this.findOne(tenantId, id);
   }
 
