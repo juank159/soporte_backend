@@ -213,7 +213,18 @@ export class OrdersService {
 
     const fromStatus = order.status;
     order.status = dto.status;
-    if (dto.notes) order.notes = dto.notes;
+
+    // Save notes in the right field based on status
+    if (dto.notes) {
+      if (dto.status === OrderStatus.DIAGNOSING) {
+        order.diagnosis = dto.notes;
+      } else if (dto.status === OrderStatus.REPAIRING) {
+        const existing = order.diagnosis || '';
+        order.diagnosis = existing ? `${existing}. ${dto.notes}` : dto.notes;
+      } else {
+        order.notes = dto.notes;
+      }
+    }
 
     if (dto.status === OrderStatus.DELIVERED) {
       order.deliveredAt = new Date();
@@ -244,9 +255,23 @@ export class OrdersService {
 
     const fromStatus = equipment.status;
     equipment.status = dto.status;
-    if (dto.notes) equipment.notes = dto.notes;
     if (dto.warrantyDays !== undefined) equipment.warrantyDays = dto.warrantyDays;
     if (dto.laborCost !== undefined) equipment.laborCost = dto.laborCost;
+
+    // Save notes in the right field based on status
+    if (dto.notes) {
+      if (dto.status === EquipmentStatus.DIAGNOSING) {
+        equipment.diagnosis = dto.notes; // Diagnosis goes to diagnosis field
+      } else if (dto.status === EquipmentStatus.REPAIRING) {
+        // Append repair notes to diagnosis
+        const existing = equipment.diagnosis || '';
+        equipment.diagnosis = existing
+          ? `${existing}. ${dto.notes}`
+          : dto.notes;
+      } else {
+        equipment.notes = dto.notes;
+      }
+    }
 
     if (dto.status === EquipmentStatus.DELIVERED) {
       equipment.deliveredAt = new Date();
