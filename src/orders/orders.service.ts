@@ -246,7 +246,11 @@ export class OrdersService {
     userName?: string,
   ) {
     // Verify order belongs to tenant
-    await this.findOne(tenantId, orderId);
+    // Verify order exists
+    const order = await this.ordersRepository.findOne({
+      where: { id: orderId, tenantId },
+    });
+    if (!order) throw new NotFoundException('Order not found');
 
     const equipment = await this.equipmentRepository.findOne({
       where: { id: equipmentId, orderId },
@@ -261,9 +265,8 @@ export class OrdersService {
     // Save notes in the right field based on status
     if (dto.notes) {
       if (dto.status === EquipmentStatus.DIAGNOSING) {
-        equipment.diagnosis = dto.notes; // Diagnosis goes to diagnosis field
+        equipment.diagnosis = dto.notes;
       } else if (dto.status === EquipmentStatus.REPAIRING) {
-        // Append repair notes to diagnosis
         const existing = equipment.diagnosis || '';
         equipment.diagnosis = existing
           ? `${existing}. ${dto.notes}`
@@ -279,19 +282,23 @@ export class OrdersService {
 
     await this.equipmentRepository.save(equipment);
 
-    // Add to order history with equipment reference
+    // Add to order history
     const eqLabel = `${equipment.deviceType} ${equipment.deviceBrand} ${equipment.deviceModel}`;
-    await this.addHistory(
-      orderId,
-      fromStatus,
-      dto.status,
-      `[${eqLabel}] ${dto.notes || ''}`.trim(),
-      userId,
-      userName,
-    );
+    try {
+      await this.addHistory(
+        orderId,
+        fromStatus,
+        dto.status,
+        `[${eqLabel}] ${dto.notes || ''}`.trim(),
+        userId,
+        userName,
+      );
+    } catch (_) {}
 
-    // Auto-update order status based on equipment statuses
-    await this.syncOrderStatus(tenantId, orderId);
+    // Auto-update order status
+    try {
+      await this.syncOrderStatus(tenantId, orderId);
+    } catch (_) {}
 
     return this.findOne(tenantId, orderId);
   }
