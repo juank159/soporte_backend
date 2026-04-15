@@ -245,6 +245,8 @@ export class OrdersService {
     const fromStatus = equipment.status;
     equipment.status = dto.status;
     if (dto.notes) equipment.notes = dto.notes;
+    if (dto.warrantyDays !== undefined) equipment.warrantyDays = dto.warrantyDays;
+    if (dto.laborCost !== undefined) equipment.laborCost = dto.laborCost;
 
     if (dto.status === EquipmentStatus.DELIVERED) {
       equipment.deliveredAt = new Date();

@@ -155,6 +155,16 @@ export class UpdateEquipmentStatusDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  warrantyDays?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  laborCost?: number;
 }
 
 export class AddDiagnosisDto {
