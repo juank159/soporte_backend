@@ -311,7 +311,7 @@ export class OrdersService {
     if (!equipment) throw new NotFoundException('Equipment not found');
 
     equipment.diagnosis = diagnosis;
-    equipment.status = EquipmentStatus.DIAGNOSING;
+    // Don't force status change - this is just editing the text
     if (laborCost !== undefined) {
       equipment.laborCost = laborCost;
     }
