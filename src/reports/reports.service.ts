@@ -62,19 +62,18 @@ export class ReportsService {
 
     // Use query builder for more flexible date filtering
     // Some orders might have deliveredAt null, fallback to createdAt
+    // Include any order with total > 0 (partial or full delivery)
     const orders = await this.ordersRepository
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.customer', 'c')
       .leftJoinAndSelect('o.items', 'i')
       .where('o.tenantId = :tenantId', { tenantId })
-      .andWhere('o.status = :status', {
-        status: OrderStatus.DELIVERED,
-      })
+      .andWhere('o.total > 0')
       .andWhere(
-        'COALESCE(o.deliveredAt, o.createdAt) BETWEEN :start AND :end',
+        'COALESCE(o.deliveredAt, o.updatedAt) BETWEEN :start AND :end',
         { start, end },
       )
-      .orderBy('COALESCE(o.deliveredAt, o.createdAt)', 'DESC')
+      .orderBy('COALESCE(o.deliveredAt, o.updatedAt)', 'DESC')
       .getMany();
 
     const totalRevenue = orders.reduce(
@@ -134,11 +133,15 @@ export class ReportsService {
         ],
       });
 
-      const orders = await this.ordersRepository.find({
-        where: { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
-      });
+      // Revenue: any order with total > 0 assigned to this tech
+      const revenueOrders = await this.ordersRepository
+        .createQueryBuilder('o')
+        .where('o.tenantId = :tenantId', { tenantId })
+        .andWhere('o.technicianId = :techId', { techId: tech.id })
+        .andWhere('o.total > 0')
+        .getMany();
 
-      const totalRevenue = orders.reduce(
+      const totalRevenue = revenueOrders.reduce(
         (sum, o) => sum + Number(o.total),
         0,
       );

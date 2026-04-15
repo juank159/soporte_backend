@@ -101,9 +101,19 @@ export class PublicController {
         if (tech) techName = tech.fullName;
       }
 
+      // Load tech names for each equipment
+      const equipments = order.equipments || [];
+      const techNamesMap: Record<string, string> = {};
+      for (const eq of equipments) {
+        if (eq.technicianId && !techNamesMap[eq.technicianId]) {
+          const t = await this.usersRepository.findOne({ where: { id: eq.technicianId } });
+          if (t) techNamesMap[eq.technicianId] = t.fullName;
+        }
+      }
+
       const history = await this.getOrderHistory(order.id);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(this.renderStatusPage(order, tenant, history, techName, order.equipments || []));
+      res.send(this.renderStatusPage(order, tenant, history, techName, equipments, techNamesMap));
     } catch {
       res.status(500).send(this.renderErrorPage('Error del servidor'));
     }
@@ -191,7 +201,7 @@ export class PublicController {
     }
   }
 
-  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>, technicianName?: string, equipments: OrderEquipment[] = []): string {
+  private renderStatusPage(order: ServiceOrder, tenant: Tenant | null, history: Array<{status: string; notes: string; date: Date}>, technicianName?: string, equipments: OrderEquipment[] = [], techNamesMap: Record<string, string> = {}): string {
     const statusLabel = this.getStatusLabel(order.status);
     const timeline = this.getTimeline(order);
     const device = order.device;
@@ -385,6 +395,7 @@ export class PublicController {
       <div class="info-row"><span class="label">Modelo</span><span class="value">${eq.deviceModel}</span></div>
       ${eq.deviceSerial ? `<div class="info-row"><span class="label">Serial</span><span class="value">${eq.deviceSerial}</span></div>` : ''}
       ${eq.accessories && eq.accessories.length > 0 ? `<div class="info-row"><span class="label">Accesorios</span><span class="value">${eq.accessories.join(', ')}</span></div>` : ''}
+      ${eq.technicianId && techNamesMap[eq.technicianId] ? `<div class="info-row"><span class="label">Tecnico</span><span class="value">${techNamesMap[eq.technicianId]}</span></div>` : ''}
       <div class="info-row"><span class="label">Problema</span><span class="value">${eq.problemReported}</span></div>
       ${eq.diagnosis ? `<div class="info-row"><span class="label">Diagnostico</span><span class="value">${eq.diagnosis}</span></div>` : ''}
       ${eq.status === 'returned' ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#EF4444;font-size:12px;font-weight:600;">⚠️ Equipo devuelto sin reparar</div>` : ''}
