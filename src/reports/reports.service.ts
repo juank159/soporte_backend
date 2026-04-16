@@ -67,6 +67,7 @@ export class ReportsService {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.customer', 'c')
       .leftJoinAndSelect('o.items', 'i')
+      .leftJoinAndSelect('o.equipments', 'eq')
       .where('o.tenantId = :tenantId', { tenantId })
       .andWhere('o.total > 0')
       .andWhere(
@@ -85,19 +86,42 @@ export class ReportsService {
       0,
     );
     const totalLabor = orders.reduce(
-      (sum, o) => sum + Number(o.laborCost),
+      (sum, o) => sum + Number(o.laborCost || 0),
       0,
     );
 
+    // Parse payment methods from equipment/order notes
+    const paymentBreakdown: Record<string, number> = {
+      'Efectivo': 0,
+      'Transferencia': 0,
+      'Tarjeta de Credito': 0,
+      'Tarjeta de Debito': 0,
+      'Sin especificar': 0,
+    };
+
+    for (const order of orders) {
+      const eqs = order.equipments || [];
+      if (eqs.length > 0) {
+        for (const eq of eqs) {
+          if (eq.notes && eq.laborCost > 0) {
+            const method = this.extractPaymentMethod(eq.notes);
+            paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(eq.laborCost);
+          }
+        }
+      } else {
+        // Single device - parse from order notes
+        const method = this.extractPaymentMethod(order.notes);
+        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(order.total);
+      }
+    }
+
     return {
-      period: {
-        start: startDate,
-        end: endDate,
-      },
+      period: { start: startDate, end: endDate },
       ordersCount: orders.length,
       totalRevenue,
       totalTax,
       totalLabor,
+      paymentBreakdown,
       orders: orders.map((o) => ({
         id: o.id,
         orderNumber: o.orderNumber,
@@ -239,5 +263,14 @@ export class ReportsService {
       warning: result.filter((o) => o.priority === 'warning').length,
       orders: result,
     };
+  }
+
+  private extractPaymentMethod(notes: string | null): string {
+    if (!notes) return 'Sin especificar';
+    if (notes.includes('Efectivo')) return 'Efectivo';
+    if (notes.includes('Transferencia')) return 'Transferencia';
+    if (notes.includes('Tarjeta de Credito')) return 'Tarjeta de Credito';
+    if (notes.includes('Tarjeta de Debito')) return 'Tarjeta de Debito';
+    return 'Sin especificar';
   }
 }
