@@ -54,11 +54,13 @@ export class ReportsService {
     startDate: Date,
     endDate: Date,
   ) {
-    // Ensure endDate includes the full day
+    // Use timezone-safe range: from startDate 00:00 local to endDate 23:59 local
+    // For Americas (UTC-3 to UTC-8), add buffer hours
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    end.setDate(end.getDate() + 1);
+    end.setHours(12, 0, 0, 0); // noon next day covers any timezone offset
 
     // Use query builder for more flexible date filtering
     // Some orders might have deliveredAt null, fallback to createdAt
