@@ -92,18 +92,37 @@ export class ReportsService {
       0,
     );
 
-    // Payment breakdown: use the LAST delivery history note per order to get payment method
-    // Then assign order.total to that method (same source as totalRevenue)
+    // Payment breakdown: parse EACH delivery note to get individual amounts per method
     const paymentBreakdown: Record<string, number> = {};
 
     for (const order of orders) {
-      const lastDelivery = await this.historyRepository.findOne({
+      const deliveryNotes = await this.historyRepository.find({
         where: { orderId: order.id, toStatus: 'delivered' },
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'ASC' },
       });
 
-      const method = lastDelivery ? this.extractPaymentMethod(lastDelivery.notes) : 'Sin especificar';
-      paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(order.total);
+      if (deliveryNotes.length > 0) {
+        let assigned = 0;
+        for (const h of deliveryNotes) {
+          if (!h.notes?.includes('Entregado por')) continue;
+          const method = this.extractPaymentMethod(h.notes);
+          const match = h.notes.match(/Entregado por \$([0-9.,]+)/);
+          if (match) {
+            const amount = Number(match[1].replace(/\./g, '').replace(',', '.')) || 0;
+            if (amount > 0) {
+              paymentBreakdown[method] = (paymentBreakdown[method] || 0) + amount;
+              assigned += amount;
+            }
+          }
+        }
+        // If parsed amounts don't match total, assign remainder
+        const remainder = Number(order.total) - assigned;
+        if (remainder > 0) {
+          paymentBreakdown['Sin especificar'] = (paymentBreakdown['Sin especificar'] || 0) + remainder;
+        }
+      } else {
+        paymentBreakdown['Sin especificar'] = (paymentBreakdown['Sin especificar'] || 0) + Number(order.total);
+      }
     }
 
     return {
