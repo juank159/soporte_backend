@@ -95,33 +95,18 @@ export class ReportsService {
       0,
     );
 
-    // Parse payment methods from order HISTORY (delivery notes always have payment method)
+    // Payment breakdown: use the LAST delivery history note per order to get payment method
+    // Then assign order.total to that method (same source as totalRevenue)
     const paymentBreakdown: Record<string, number> = {};
 
     for (const order of orders) {
-      // Get delivery history entries for this order
-      const deliveryHistory = await this.historyRepository.find({
+      const lastDelivery = await this.historyRepository.findOne({
         where: { orderId: order.id, toStatus: 'delivered' },
         order: { createdAt: 'DESC' },
       });
 
-      if (deliveryHistory.length > 0) {
-        // Parse payment method and amount from each delivery note
-        for (const h of deliveryHistory) {
-          const method = this.extractPaymentMethod(h.notes);
-          const amountMatch = h.notes?.match(/Entregado por \$([0-9.,]+)/);
-          let amount = 0;
-          if (amountMatch) {
-            amount = Number(amountMatch[1].replace(/\./g, '').replace(',', '.')) || 0;
-          }
-          if (amount > 0) {
-            paymentBreakdown[method] = (paymentBreakdown[method] || 0) + amount;
-          }
-        }
-      } else {
-        // No delivery history - count as unspecified
-        paymentBreakdown['Sin especificar'] = (paymentBreakdown['Sin especificar'] || 0) + Number(order.total);
-      }
+      const method = lastDelivery ? this.extractPaymentMethod(lastDelivery.notes) : 'Sin especificar';
+      paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(order.total);
     }
 
     return {
