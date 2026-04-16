@@ -16,33 +16,37 @@ export class ReportsService {
     private usersRepository: Repository<User>,
   ) {}
 
-  async getDashboardStats(tenantId: string) {
-    const totalOrders = await this.ordersRepository.count({
-      where: { tenantId },
-    });
+  private getDateRange(startDate?: string, endDate?: string) {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setDate(end.getDate() + 1);
+    end.setHours(12, 0, 0, 0);
+    return { start, end };
+  }
 
+  async getDashboardStats(tenantId: string, startDate?: string, endDate?: string) {
+    const range = this.getDateRange(startDate, endDate);
+
+    const qb = this.ordersRepository.createQueryBuilder('o')
+      .where('o.tenantId = :tenantId', { tenantId });
+    if (range) {
+      qb.andWhere('COALESCE(o.deliveredAt, o.updatedAt) BETWEEN :start AND :end', range);
+    }
+    const orders = await qb.getMany();
+
+    const totalOrders = orders.length;
     const statusCounts: Record<string, number> = {};
-    for (const status of Object.values(OrderStatus)) {
-      statusCounts[status] = await this.ordersRepository.count({
-        where: { tenantId, status },
-      });
+    for (const o of orders) {
+      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
     }
 
-    // Revenue: sum total from ALL orders that have total > 0 (partial or full delivery)
-    const ordersWithRevenue = await this.ordersRepository
-      .createQueryBuilder('o')
-      .where('o.tenantId = :tenantId', { tenantId })
-      .andWhere('o.total > 0')
-      .getMany();
+    const totalRevenue = orders
+      .filter(o => Number(o.total) > 0)
+      .reduce((sum, o) => sum + Number(o.total), 0);
 
-    const totalRevenue = ordersWithRevenue.reduce(
-      (sum, o) => sum + Number(o.total),
-      0,
-    );
-
-    const completedOrders = await this.ordersRepository.count({
-      where: { tenantId, status: OrderStatus.DELIVERED },
-    });
+    const completedOrders = orders.filter(o => o.status === OrderStatus.DELIVERED).length;
 
     return {
       totalOrders,
@@ -57,13 +61,7 @@ export class ReportsService {
     startDate: Date,
     endDate: Date,
   ) {
-    // Use timezone-safe range: from startDate 00:00 local to endDate 23:59 local
-    // For Americas (UTC-3 to UTC-8), add buffer hours
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setDate(end.getDate() + 1);
-    end.setHours(12, 0, 0, 0); // noon next day covers any timezone offset
+    const { start, end } = this.getDateRange(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])!;
 
     // Use query builder for more flexible date filtering
     // Some orders might have deliveredAt null, fallback to createdAt
@@ -126,7 +124,8 @@ export class ReportsService {
     };
   }
 
-  async getTechnicianReport(tenantId: string) {
+  async getTechnicianReport(tenantId: string, startDate?: string, endDate?: string) {
+    const range = this.getDateRange(startDate, endDate);
     const technicians = await this.usersRepository.find({
       where: { tenantId, role: 'technician' as any, isActive: true },
     });
@@ -140,29 +139,20 @@ export class ReportsService {
     }> = [];
 
     for (const tech of technicians) {
-      const completedOrders = await this.ordersRepository.count({
-        where: { tenantId, technicianId: tech.id, status: OrderStatus.DELIVERED },
-      });
-
-      const activeOrders = await this.ordersRepository.count({
-        where: [
-          { tenantId, technicianId: tech.id, status: OrderStatus.REPAIRING },
-          { tenantId, technicianId: tech.id, status: OrderStatus.DIAGNOSING },
-        ],
-      });
-
-      // Revenue: any order with total > 0 assigned to this tech
-      const revenueOrders = await this.ordersRepository
-        .createQueryBuilder('o')
+      const qb = this.ordersRepository.createQueryBuilder('o')
         .where('o.tenantId = :tenantId', { tenantId })
-        .andWhere('o.technicianId = :techId', { techId: tech.id })
-        .andWhere('o.total > 0')
-        .getMany();
+        .andWhere('o.technicianId = :techId', { techId: tech.id });
+      if (range) {
+        qb.andWhere('COALESCE(o.deliveredAt, o.updatedAt) BETWEEN :start AND :end', range);
+      }
+      const techOrders = await qb.getMany();
 
-      const totalRevenue = revenueOrders.reduce(
-        (sum, o) => sum + Number(o.total),
-        0,
-      );
+      const completedOrders = techOrders.filter(o => o.status === OrderStatus.DELIVERED).length;
+      const activeOrders = techOrders.filter(o =>
+        o.status === OrderStatus.REPAIRING || o.status === OrderStatus.DIAGNOSING).length;
+      const totalRevenue = techOrders
+        .filter(o => Number(o.total) > 0)
+        .reduce((sum, o) => sum + Number(o.total), 0);
 
       result.push({
         technicianId: tech.id,
@@ -179,10 +169,15 @@ export class ReportsService {
     return result;
   }
 
-  async getRepairTimeReport(tenantId: string) {
-    const orders = await this.ordersRepository.find({
-      where: { tenantId, status: OrderStatus.DELIVERED },
-    });
+  async getRepairTimeReport(tenantId: string, startDate?: string, endDate?: string) {
+    const range = this.getDateRange(startDate, endDate);
+    const qb = this.ordersRepository.createQueryBuilder('o')
+      .where('o.tenantId = :tenantId', { tenantId })
+      .andWhere('o.status = :status', { status: OrderStatus.DELIVERED });
+    if (range) {
+      qb.andWhere('COALESCE(o.deliveredAt, o.updatedAt) BETWEEN :start AND :end', range);
+    }
+    const orders = await qb.getMany();
 
     if (orders.length === 0) {
       return { averageHours: 0, fastestHours: 0, slowestHours: 0, count: 0 };

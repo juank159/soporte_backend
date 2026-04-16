@@ -17,8 +17,14 @@ export class ReportsController {
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard statistics' })
-  getDashboard(@CurrentTenant() tenantId: string) {
-    return this.reportsService.getDashboardStats(tenantId);
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getDashboard(
+    @CurrentTenant() tenantId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getDashboardStats(tenantId, startDate, endDate);
   }
 
   @Get('revenue')
@@ -39,14 +45,26 @@ export class ReportsController {
 
   @Get('technicians')
   @ApiOperation({ summary: 'Technician performance report' })
-  getTechnicians(@CurrentTenant() tenantId: string) {
-    return this.reportsService.getTechnicianReport(tenantId);
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getTechnicians(
+    @CurrentTenant() tenantId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getTechnicianReport(tenantId, startDate, endDate);
   }
 
   @Get('repair-time')
   @ApiOperation({ summary: 'Average repair time report' })
-  getRepairTime(@CurrentTenant() tenantId: string) {
-    return this.reportsService.getRepairTimeReport(tenantId);
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  getRepairTime(
+    @CurrentTenant() tenantId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getRepairTimeReport(tenantId, startDate, endDate);
   }
 
   @Get('stale-orders')
