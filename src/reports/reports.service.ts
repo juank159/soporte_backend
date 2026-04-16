@@ -57,10 +57,10 @@ export class ReportsService {
 
   async getRevenueReport(
     tenantId: string,
-    startDate: Date,
-    endDate: Date,
+    startDate: string,
+    endDate: string,
   ) {
-    const { start, end } = this.getDateRange(startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])!;
+    const { start, end } = this.getDateRange(startDate, endDate)!;
 
     // Use query builder for more flexible date filtering
     // Some orders might have deliveredAt null, fallback to createdAt

@@ -131,13 +131,15 @@ export class OrdersService {
     }
 
     if (dateFrom) {
-      qb.andWhere('o.createdAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
+      // Colombia UTC-5: midnight local = 05:00 UTC
+      qb.andWhere('o.createdAt >= :dateFrom', { dateFrom: new Date(dateFrom + 'T05:00:00.000Z') });
     }
 
     if (dateTo) {
-      const to = new Date(dateTo);
-      to.setHours(23, 59, 59, 999);
-      qb.andWhere('o.createdAt <= :dateTo', { dateTo: to });
+      // End of day in Colombia = next day 05:00 UTC
+      const end = new Date(dateTo + 'T05:00:00.000Z');
+      end.setDate(end.getDate() + 1);
+      qb.andWhere('o.createdAt < :dateTo', { dateTo: end });
     }
 
     return qb.orderBy('o.createdAt', 'DESC').getMany();

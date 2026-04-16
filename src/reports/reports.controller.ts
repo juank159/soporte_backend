@@ -36,11 +36,7 @@ export class ReportsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportsService.getRevenueReport(
-      tenantId,
-      new Date(startDate),
-      new Date(endDate),
-    );
+    return this.reportsService.getRevenueReport(tenantId, startDate, endDate);
   }
 
   @Get('technicians')
