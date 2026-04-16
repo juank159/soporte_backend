@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { ServiceOrder, OrderStatus } from '../orders/entities/service-order.entity';
+import { OrderHistory } from '../orders/entities/order-history.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class ReportsService {
   constructor(
     @InjectRepository(ServiceOrder)
     private ordersRepository: Repository<ServiceOrder>,
+    @InjectRepository(OrderHistory)
+    private historyRepository: Repository<OrderHistory>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
@@ -92,28 +95,32 @@ export class ReportsService {
       0,
     );
 
-    // Parse payment methods from equipment/order notes
-    const paymentBreakdown: Record<string, number> = {
-      'Efectivo': 0,
-      'Transferencia': 0,
-      'Tarjeta de Credito': 0,
-      'Tarjeta de Debito': 0,
-      'Sin especificar': 0,
-    };
+    // Parse payment methods from order HISTORY (delivery notes always have payment method)
+    const paymentBreakdown: Record<string, number> = {};
 
     for (const order of orders) {
-      const eqs = order.equipments || [];
-      if (eqs.length > 0) {
-        for (const eq of eqs) {
-          if (eq.notes && eq.laborCost > 0) {
-            const method = this.extractPaymentMethod(eq.notes);
-            paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(eq.laborCost);
+      // Get delivery history entries for this order
+      const deliveryHistory = await this.historyRepository.find({
+        where: { orderId: order.id, toStatus: 'delivered' },
+        order: { createdAt: 'DESC' },
+      });
+
+      if (deliveryHistory.length > 0) {
+        // Parse payment method and amount from each delivery note
+        for (const h of deliveryHistory) {
+          const method = this.extractPaymentMethod(h.notes);
+          const amountMatch = h.notes?.match(/Entregado por \$([0-9.,]+)/);
+          let amount = 0;
+          if (amountMatch) {
+            amount = Number(amountMatch[1].replace(/\./g, '').replace(',', '.')) || 0;
+          }
+          if (amount > 0) {
+            paymentBreakdown[method] = (paymentBreakdown[method] || 0) + amount;
           }
         }
       } else {
-        // Single device - parse from order notes
-        const method = this.extractPaymentMethod(order.notes);
-        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + Number(order.total);
+        // No delivery history - count as unspecified
+        paymentBreakdown['Sin especificar'] = (paymentBreakdown['Sin especificar'] || 0) + Number(order.total);
       }
     }
 
