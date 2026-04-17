@@ -111,6 +111,8 @@ export class OrdersService {
     search?: string,
     dateFrom?: string,
     dateTo?: string,
+    page: number = 1,
+    limit: number = 20,
   ) {
     const qb = this.ordersRepository
       .createQueryBuilder('o')
@@ -131,18 +133,26 @@ export class OrdersService {
     }
 
     if (dateFrom) {
-      // Colombia UTC-5: midnight local = 05:00 UTC
       qb.andWhere('o.createdAt >= :dateFrom', { dateFrom: new Date(dateFrom + 'T05:00:00.000Z') });
     }
 
     if (dateTo) {
-      // End of day in Colombia = next day 05:00 UTC
       const end = new Date(dateTo + 'T05:00:00.000Z');
       end.setDate(end.getDate() + 1);
       qb.andWhere('o.createdAt < :dateTo', { dateTo: end });
     }
 
-    return qb.orderBy('o.createdAt', 'DESC').getMany();
+    const total = await qb.getCount();
+    const skip = (page - 1) * limit;
+    const data = await qb.orderBy('o.createdAt', 'DESC').skip(skip).take(limit).getMany();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findAllSimple(tenantId: string, status?: OrderStatus) {

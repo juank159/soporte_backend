@@ -50,19 +50,27 @@ export class OrdersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List/search orders' })
+  @ApiOperation({ summary: 'List/search orders (paginated)' })
   @ApiQuery({ name: 'status', required: false, enum: OrderStatus })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'dateFrom', required: false, example: '2026-01-01' })
   @ApiQuery({ name: 'dateTo', required: false, example: '2026-12-31' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   findAll(
     @CurrentTenant() tenantId: string,
     @Query('status') status?: OrderStatus,
     @Query('search') search?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.ordersService.findAll(tenantId, status, search, dateFrom, dateTo);
+    return this.ordersService.findAll(
+      tenantId, status, search, dateFrom, dateTo,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
   }
 
   @Get(':id')
