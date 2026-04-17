@@ -232,7 +232,11 @@ export class OrdersService {
     }
 
     await this.ordersRepository.update(id, updateData);
-    await this.addHistory(id, fromStatus, dto.status, dto.notes, userId, userName);
+
+    // Only add history if status actually changed
+    if (fromStatus !== dto.status) {
+      await this.addHistory(id, fromStatus, dto.status, dto.notes, userId, userName);
+    }
 
     return this.findOne(tenantId, id);
   }
@@ -280,23 +284,24 @@ export class OrdersService {
 
     await this.equipmentRepository.save(equipment);
 
-    // Add to order history
-    const eqLabel = `${equipment.deviceType} ${equipment.deviceBrand} ${equipment.deviceModel}`;
-    try {
-      await this.addHistory(
-        orderId,
-        fromStatus,
-        dto.status,
-        `[${eqLabel}] ${dto.notes || ''}`.trim(),
-        userId,
-        userName,
-      );
-    } catch (_) {}
+    // Only add history and sync if status actually changed
+    if (fromStatus !== dto.status) {
+      const eqLabel = `${equipment.deviceType} ${equipment.deviceBrand} ${equipment.deviceModel}`;
+      try {
+        await this.addHistory(
+          orderId,
+          fromStatus,
+          dto.status,
+          `[${eqLabel}] ${dto.notes || ''}`.trim(),
+          userId,
+          userName,
+        );
+      } catch (_) {}
 
-    // Auto-update order status
-    try {
-      await this.syncOrderStatus(tenantId, orderId);
-    } catch (_) {}
+      try {
+        await this.syncOrderStatus(tenantId, orderId);
+      } catch (_) {}
+    }
 
     return this.findOne(tenantId, orderId);
   }
@@ -408,13 +413,16 @@ export class OrdersService {
     const tax = subtotal * 0.19;
     const total = subtotal + tax;
 
-    // Use raw query to avoid any TypeORM null issues
+    // Only change status to DIAGNOSING if currently RECEIVED (first time diagnosis)
+    // If already past diagnosing, keep current status (editing existing text)
+    const newStatus = order.status === OrderStatus.RECEIVED ? OrderStatus.DIAGNOSING : order.status;
+
     await this.ordersRepository
       .createQueryBuilder()
       .update()
       .set({
         diagnosis: dto.diagnosis,
-        status: OrderStatus.DIAGNOSING,
+        status: newStatus,
         laborCost: laborCost,
         subtotal: subtotal,
         tax: tax,
