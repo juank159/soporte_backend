@@ -142,6 +142,21 @@ export class CreateOrderDto {
   @IsArray()
   photos?: string[];
 
+  @ApiPropertyOptional({ example: 'abc123' })
+  @IsOptional()
+  @IsString()
+  unlockPassword?: string;
+
+  @ApiPropertyOptional({ example: '1234' })
+  @IsOptional()
+  @IsString()
+  unlockPin?: string;
+
+  @ApiPropertyOptional({ example: '1-5-9' })
+  @IsOptional()
+  @IsString()
+  unlockPattern?: string;
+
   // Multiple devices
   @ApiPropertyOptional({ description: 'Array of equipment for multi-device orders' })
   @IsOptional()

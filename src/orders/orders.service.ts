@@ -91,6 +91,26 @@ export class OrdersService {
       }
     }
 
+    // Single-device with unlock credentials: create order_equipment to persist them
+    if (!hasEquipments && dto.deviceType && (dto.unlockPassword || dto.unlockPin || dto.unlockPattern)) {
+      const equipment = this.equipmentRepository.create({
+        orderId: savedOrder.id,
+        deviceType: dto.deviceType,
+        deviceBrand: dto.deviceBrand || '',
+        deviceModel: dto.deviceModel || '',
+        deviceSerial: dto.deviceSerial,
+        deviceColor: dto.deviceColor,
+        accessories: dto.accessories,
+        problemReported: dto.problemReported || '',
+        technicianId: dto.technicianId,
+        unlockPassword: dto.unlockPassword,
+        unlockPin: dto.unlockPin,
+        unlockPattern: dto.unlockPattern,
+        status: EquipmentStatus.RECEIVED,
+      });
+      await this.equipmentRepository.save(equipment);
+    }
+
     // Save photos if provided (for single device)
     if (dto.photos?.length) {
       for (const photoUrl of dto.photos) {
