@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   ManyToOne,
   JoinColumn,
   OneToMany,
@@ -103,6 +104,12 @@ export class ServiceOrder {
 
   @Column({ name: 'closed_at', nullable: true })
   closedAt: Date;
+
+  @Column({ name: 'requires_client_signature', default: true })
+  requiresClientSignature: boolean;
+
+  @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+  deletedAt: Date;
 
   @OneToMany(() => OrderEquipment, (eq) => eq.order, { cascade: true })
   equipments: OrderEquipment[];

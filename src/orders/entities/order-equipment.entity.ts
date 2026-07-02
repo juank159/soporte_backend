@@ -75,6 +75,18 @@ export class OrderEquipment {
   @Column({ name: 'warranty_days', default: 0 })
   warrantyDays: number;
 
+  @Column({ name: 'payment_method', length: 50, nullable: true })
+  paymentMethod: string;
+
+  @Column({ name: 'unlock_password', length: 255, nullable: true })
+  unlockPassword: string;
+
+  @Column({ name: 'unlock_pin', length: 20, nullable: true })
+  unlockPin: string;
+
+  @Column({ name: 'unlock_pattern', length: 100, nullable: true })
+  unlockPattern: string;
+
   @Column({ name: 'delivered_at', nullable: true })
   deliveredAt: Date;
 

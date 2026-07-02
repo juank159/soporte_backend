@@ -5,6 +5,7 @@ import {
   IsArray,
   IsEnum,
   IsNumber,
+  IsBoolean,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -67,6 +68,21 @@ export class EquipmentDto {
   @IsOptional()
   @IsString()
   technicianId?: string;
+
+  @ApiPropertyOptional({ example: '1234' })
+  @IsOptional()
+  @IsString()
+  unlockPassword?: string;
+
+  @ApiPropertyOptional({ example: '9876' })
+  @IsOptional()
+  @IsString()
+  unlockPin?: string;
+
+  @ApiPropertyOptional({ example: 'L invertida' })
+  @IsOptional()
+  @IsString()
+  unlockPattern?: string;
 }
 
 export class CreateOrderDto {
@@ -133,6 +149,11 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => EquipmentDto)
   equipments?: EquipmentDto[];
+
+  @ApiPropertyOptional({ description: 'Whether client signature is required on delivery', default: true })
+  @IsOptional()
+  @IsBoolean()
+  requiresClientSignature?: boolean;
 }
 
 export class UpdateOrderStatusDto {
@@ -165,6 +186,11 @@ export class UpdateEquipmentStatusDto {
   @IsOptional()
   @IsNumber()
   laborCost?: number;
+
+  @ApiPropertyOptional({ example: 'efectivo' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
 
 export class AddDiagnosisDto {

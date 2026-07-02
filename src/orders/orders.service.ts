@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ServiceOrder, OrderStatus } from './entities/service-order.entity';
@@ -65,6 +65,7 @@ export class OrdersService {
       technicianId: dto.technicianId,
       problemReported: dto.problemReported || (hasEquipments ? 'Ver equipos' : ''),
       status: OrderStatus.RECEIVED,
+      requiresClientSignature: dto.requiresClientSignature !== undefined ? dto.requiresClientSignature : true,
     });
     const savedOrder = await this.ordersRepository.save(order) as ServiceOrder;
 
@@ -81,6 +82,9 @@ export class OrdersService {
           accessories: eq.accessories,
           problemReported: eq.problemReported,
           technicianId: eq.technicianId,
+          unlockPassword: eq.unlockPassword,
+          unlockPin: eq.unlockPin,
+          unlockPattern: eq.unlockPattern,
           status: EquipmentStatus.RECEIVED,
         });
         await this.equipmentRepository.save(equipment);
@@ -276,6 +280,7 @@ export class OrdersService {
     equipment.status = dto.status;
     if (dto.warrantyDays !== undefined) equipment.warrantyDays = dto.warrantyDays;
     if (dto.laborCost !== undefined) equipment.laborCost = dto.laborCost;
+    if (dto.paymentMethod !== undefined) equipment.paymentMethod = dto.paymentMethod;
 
     // Save notes in the right field: diagnosis = what was found, notes = what was done
     if (dto.notes) {
@@ -482,6 +487,12 @@ export class OrdersService {
     order.warrantyDays = warrantyDays;
     await this.ordersRepository.save(order);
     return this.findOne(tenantId, orderId);
+  }
+
+  async remove(tenantId: string, id: string) {
+    const order = await this.ordersRepository.findOne({ where: { id, tenantId } });
+    if (!order) throw new NotFoundException('Order not found');
+    await this.ordersRepository.softDelete(id);
   }
 
   async assignTechnician(tenantId: string, orderId: string, technicianId: string) {

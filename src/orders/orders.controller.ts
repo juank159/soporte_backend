@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -77,6 +78,14 @@ export class OrdersController {
   @ApiOperation({ summary: 'Get order by ID' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.ordersService.findOne(tenantId, id);
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @ApiOperation({ summary: 'Soft delete an order (hidden from tenant, kept in DB)' })
+  remove(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.ordersService.remove(tenantId, id);
   }
 
   @Get(':id/history')
