@@ -84,16 +84,26 @@ export class TenantsService {
     };
   }
 
+  private readonly _defaultPaymentMethods = ['Efectivo', 'Transferencia', 'Tarjeta Credito', 'Tarjeta Debito'];
+
   async findOne(id: string) {
     const tenant = await this.tenantsRepository.findOne({ where: { id } });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    return tenant;
+    const paymentMethods: string[] = (tenant.settings as any)?.paymentMethods ?? this._defaultPaymentMethods;
+    return { ...tenant, paymentMethods };
   }
 
   async update(id: string, updateTenantDto: UpdateTenantDto) {
-    const tenant = await this.findOne(id);
-    Object.assign(tenant, updateTenantDto);
-    return this.tenantsRepository.save(tenant);
+    const tenant = await this.tenantsRepository.findOne({ where: { id } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    const { paymentMethods, ...rest } = updateTenantDto as any;
+    Object.assign(tenant, rest);
+    if (paymentMethods !== undefined) {
+      tenant.settings = { ...(tenant.settings || {}), paymentMethods };
+    }
+    const saved = await this.tenantsRepository.save(tenant);
+    const pm: string[] = (saved.settings as any)?.paymentMethods ?? this._defaultPaymentMethods;
+    return { ...saved, paymentMethods: pm };
   }
 
   async findAll() {

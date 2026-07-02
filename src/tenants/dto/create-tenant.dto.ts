@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTenantDto {
@@ -107,4 +107,9 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsString()
   legalNotice?: string;
+
+  @ApiPropertyOptional({ description: 'List of accepted payment methods for this tenant', example: ['Efectivo', 'Transferencia', 'ADI'] })
+  @IsOptional()
+  @IsArray()
+  paymentMethods?: string[];
 }
